@@ -3,7 +3,6 @@ node_modules/
 out/
 db/*.db
 db/*.db-journal
-.env
 .env.local
 .env.production
 *.log

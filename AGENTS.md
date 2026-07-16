@@ -7,17 +7,20 @@ Arabic game localization (تعريب) platform — a Next.js 16 single-page app.
 ## Quick commands
 
 ```bash
-bun install                    # install deps
-bun run dev                    # dev server on port 3000
-bun run build                  # standalone build (output: .next/standalone/)
-bun run start                  # production: bun .next/standalone/server.js
-bun run lint                   # eslint
-bun run db:push                # push schema to SQLite
-bun run db:generate            # regenerate Prisma client
-bun run db:migrate             # create migration
-bun run db:reset               # reset DB
-bunx tsx scripts/seed.ts       # seed sample data (28 games, 123+ mods)
+npm install                      # install deps (use npm, not bun)
+npm run dev                      # dev server on port 3000
+npm run build                    # production build (Vercel uses this)
+npm run lint                     # eslint
+npx prisma generate              # regenerate Prisma client
+npx prisma db push               # push schema to PostgreSQL (Neon)
+npx tsx scripts/seed.ts          # seed sample data (28 games, 123+ mods)
 ```
+
+## IMPORTANT: Do NOT install node_modules locally
+
+**DO NOT run `npm install` or any package installer locally.** The `node_modules` directory causes problems (corrupted state, ENOTEMPTY errors). All installation happens on Vercel during build. The build script in `package.json` handles `prisma generate` and `prisma db push` automatically.
+
+If you need to test locally, use a container or fresh environment — never install in the project root.
 
 ## Architecture (the part that will trip you up)
 
@@ -36,7 +39,7 @@ Views: `home`, `mod`, `search`, `upload`, `profile`, `login`, `register`, `serie
 - **No test framework** — no test scripts, no test files. If you add tests, pick the framework yourself.
 - **Tailwind CSS v4** with PostCSS (`@tailwindcss/postcss`), not the old `tailwindcss` plugin. Config file at `tailwind.config.ts` may be vestigial — the real styling entry is `src/app/globals.css`.
 - **shadcn/ui** — new-york style, lucide icons, configured in `components.json`. Components live in `src/components/ui/`. Aliases: `@/components`, `@/lib`, `@/hooks`.
-- **Prisma + SQLite** — DB file at `db/custom.db`. Use `bun run db:push` to sync schema changes. `prisma generate` after schema edits.
+- **Prisma + PostgreSQL (Neon)** — cloud database on Neon. Schema managed via `npx prisma db push`. `prisma generate` runs automatically during build.
 - **Runtime**: Production runs on **Bun** (not Node). Dev also uses Bun.
 
 ## Platform gotcha
