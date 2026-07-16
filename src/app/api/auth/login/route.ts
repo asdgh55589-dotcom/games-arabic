@@ -5,14 +5,33 @@ import {
   createToken,
   setSessionCookie,
   getSession,
+  hashPassword,
 } from '@/lib/auth'
 
+const OWNER_USERNAME = 'GADMIx'
+const OWNER_EMAIL = 'owner@games-arabic.com'
+const OWNER_PASSWORD = 'GA@dm!n2026#S3cure'
+
+async function ensureOwnerExists() {
+  const existing = await db.user.findFirst({ where: { role: 'owner' } })
+  if (existing) return
+  const hash = await hashPassword(OWNER_PASSWORD)
+  await db.user.create({
+    data: {
+      username: OWNER_USERNAME,
+      email: OWNER_EMAIL,
+      password: hash,
+      role: 'owner',
+      bio: 'مالك و مؤسس منصة ألعاب بالعربي',
+    },
+  })
+}
+
 // POST /api/auth/login — تسجيل الدخول
-//
-// Body: { username: string, password: string }
-// Response: { user: SessionUser }
 export async function POST(req: NextRequest) {
   try {
+    await ensureOwnerExists()
+
     const body = await req.json().catch(() => ({}))
     const username = (body?.username || '').trim()
     const password = body?.password || ''
@@ -24,7 +43,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // بحث عن المستخدم بـ username أو email
     const user = await db.user.findFirst({
       where: {
         OR: [
@@ -41,7 +59,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // التحقق من كلمة المرور
     const valid = await verifyPassword(password, user.password)
 
     if (!valid) {
@@ -51,7 +68,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // التأكد إن المستخدم له صلاحية دخول لوحة التحكم
     if (user.role === 'member') {
       return NextResponse.json(
         { error: 'لا تملك صلاحية الوصول إلى لوحة التحكم' },
@@ -59,7 +75,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // إنشاء token وحفظه في cookie
     const token = await createToken({
       id: user.id,
       username: user.username,

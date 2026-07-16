@@ -54,13 +54,6 @@ function AdminLoginContent() {
       .catch(() => setCheckingSession(false))
   }, [router, fromPath])
 
-  // تلقائي: لو مفيش مستخدمين، يعمل setup
-  useEffect(() => {
-    fetch('/api/admin/setup', { method: 'POST' })
-      .then(() => {})
-      .catch(() => {})
-  }, [])
-
   // عرض رسالة خطأ من الـ query string
   useEffect(() => {
     if (errorCode === 'insufficient_role') {
