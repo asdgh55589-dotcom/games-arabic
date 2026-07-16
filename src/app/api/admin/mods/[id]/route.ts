@@ -1,0 +1,267 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+import { requireModerator, canEditMod, canDelete } from '@/lib/auth'
+
+interface RouteParams {
+  params: Promise<{ id: string }>
+}
+
+// GET /api/admin/mods/[id] — تعريب واحد بكل الـ relations
+export async function GET(_req: NextRequest, { params }: RouteParams) {
+  try {
+    await requireModerator()
+    const { id } = await params
+
+    const mod = await db.mod.findUnique({
+      where: { id },
+      include: {
+        author: { select: { id: true, username: true, avatarUrl: true } },
+        game: true,
+        category: true,
+        files: {
+          orderBy: { order: 'asc' },
+          include: { links: { orderBy: { order: 'asc' } } },
+        },
+        teamMembers: { orderBy: { order: 'asc' } },
+        contactLinks: { orderBy: { order: 'asc' } },
+        videoGroups: {
+          orderBy: { order: 'asc' },
+          include: { videos: { orderBy: { order: 'asc' } } },
+        },
+        customTabs: { orderBy: { order: 'asc' } },
+      },
+    })
+
+    if (!mod) {
+      return NextResponse.json({ error: 'Mod not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({ mod })
+  } catch (err) {
+    console.error('[admin/mods/[id] GET] failed:', err)
+    const status = (err as { status?: number })?.status || 500
+    return NextResponse.json({ error: 'Failed' }, { status })
+  }
+}
+
+// PUT /api/admin/mods/[id] — تعديل تعريب
+export async function PUT(req: NextRequest, { params }: RouteParams) {
+  try {
+    const user = await requireModerator()
+    const { id } = await params
+    const body = await req.json()
+
+    // التأكد إن التعريب موجود
+    const existing = await db.mod.findUnique({ where: { id }, select: { authorId: true } })
+    if (!existing) {
+      return NextResponse.json({ error: 'Mod not found' }, { status: 404 })
+    }
+
+    // التحقق من الصلاحية
+    if (!canEditMod(user, existing)) {
+      return NextResponse.json(
+        { error: 'Forbidden — you can only edit your own mods' },
+        { status: 403 }
+      )
+    }
+
+    // تحديث الحقول الأساسية
+    const updateData: Record<string, unknown> = {}
+    const allowedFields = [
+      'name', 'summary', 'description', 'changelog', 'installGuide', 'arabicTitle', 'compatibility',
+      'categoryId', 'thumbnailUrl', 'imageUrl', 'version', 'fileSize', 'fileFormat',
+      'tags', 'series', 'translationTeam', 'translationType',
+      'isFeatured', 'isTrending', 'isLatest', 'releaseDate',
+    ]
+    for (const field of allowedFields) {
+      if (body[field] !== undefined) {
+        if (field === 'releaseDate') {
+          updateData[field] = body[field] ? new Date(body[field]) : new Date()
+        } else if (['isFeatured', 'isTrending', 'isLatest'].includes(field)) {
+          updateData[field] = Boolean(body[field])
+        } else if (field === 'tags' && Array.isArray(body.tags)) {
+          updateData[field] = body.tags.join(',')
+        } else if (field === 'galleryUrls' || field === 'galleryUrls') {
+          updateData[field] = Array.isArray(body[field]) ? body[field].join(',') : body[field]
+        } else {
+          updateData[field] = body[field]
+        }
+      }
+    }
+    // galleryUrls لو أتعدّلت
+    if (body.galleryUrls !== undefined) {
+      updateData.galleryUrls = Array.isArray(body.galleryUrls)
+        ? body.galleryUrls.join(',')
+        : body.galleryUrls
+    }
+
+    // slug لو اتعدّل
+    if (body.slug && body.slug !== existing) {
+      const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      updateData.slug = slugify(body.slug)
+    }
+
+    await db.mod.update({ where: { id }, data: updateData })
+
+    // ===== تحديث الـ relations =====
+    const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+
+    // ملفات التحميل — امسح القديمة وأنشئ الجديدة
+    if (Array.isArray(body.files)) {
+      await db.modFile.deleteMany({ where: { modId: id } })
+      for (let i = 0; i < body.files.length; i++) {
+        const f = body.files[i]
+        if (!f.title) continue
+        await db.modFile.create({
+          data: {
+            modId: id,
+            title: f.title,
+            description: f.description || null,
+            alert: f.alert || null,
+            version: f.version || body.version || '1.0.0',
+            releaseDate: f.releaseDate ? new Date(f.releaseDate) : new Date(),
+            fileSize: f.fileSize || body.fileSize || 'MB 0',
+            fileFormat: f.fileFormat || body.fileFormat || 'zip',
+            order: f.order ?? i,
+            links: {
+              create: Array.isArray(f.links)
+                ? f.links.map((l: { url: string; label?: string }, j: number) => ({
+                    url: l.url,
+                    label: l.label || null,
+                    order: j,
+                  }))
+                : [],
+            },
+          },
+        })
+      }
+    }
+
+    // أعضاء الفريق
+    if (Array.isArray(body.teamMembers)) {
+      await db.modTeamMember.deleteMany({ where: { modId: id } })
+      for (let i = 0; i < body.teamMembers.length; i++) {
+        const m = body.teamMembers[i]
+        if (!m.name) continue
+        await db.modTeamMember.create({
+          data: {
+            modId: id,
+            name: m.name,
+            avatarUrl: m.avatarUrl || null,
+            role: m.role || 'مترجم',
+            contribution: m.contribution || null,
+            order: m.order ?? i,
+          },
+        })
+      }
+    }
+
+    // روابط التواصل
+    if (Array.isArray(body.contactLinks)) {
+      await db.modContactLink.deleteMany({ where: { modId: id } })
+      for (let i = 0; i < body.contactLinks.length; i++) {
+        const c = body.contactLinks[i]
+        if (!c.url) continue
+        await db.modContactLink.create({
+          data: {
+            modId: id,
+            type: c.type || 'website',
+            label: c.label || '',
+            url: c.url,
+            order: c.order ?? i,
+          },
+        })
+      }
+    }
+
+    // أقسام الفيديوهات
+    if (Array.isArray(body.videoGroups)) {
+      await db.modVideoGroup.deleteMany({ where: { modId: id } })
+      for (let i = 0; i < body.videoGroups.length; i++) {
+        const g = body.videoGroups[i]
+        if (!g.name) continue
+        const group = await db.modVideoGroup.create({
+          data: {
+            modId: id,
+            name: g.name,
+            order: g.order ?? i,
+          },
+        })
+        if (Array.isArray(g.videos)) {
+          for (let j = 0; j < g.videos.length; j++) {
+            const v = g.videos[j]
+            if (!v.title || !v.url) continue
+            await db.modVideo.create({
+              data: {
+                groupId: group.id,
+                title: v.title,
+                url: v.url,
+                thumbnail: v.thumbnail || null,
+                duration: v.duration || null,
+                views: v.views || 0,
+                channel: v.channel || null,
+                order: v.order ?? j,
+              },
+            })
+          }
+        }
+      }
+    }
+
+    // التبويبات المخصصة
+    if (Array.isArray(body.customTabs)) {
+      await db.modCustomTab.deleteMany({ where: { modId: id } })
+      for (let i = 0; i < body.customTabs.length; i++) {
+        const t = body.customTabs[i]
+        if (!t.name) continue
+        const tabSlug = t.slug || slugify(t.name)
+        await db.modCustomTab.create({
+          data: {
+            modId: id,
+            name: t.name,
+            slug: tabSlug,
+            content: t.content || '',
+            order: t.order ?? i,
+            visible: t.visible !== undefined ? Boolean(t.visible) : true,
+          },
+        })
+      }
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error('[admin/mods/[id] PUT] failed:', err)
+    const status = (err as { status?: number })?.status || 500
+    const message = err instanceof Error ? err.message : 'Failed to update mod'
+    return NextResponse.json({ error: message }, { status })
+  }
+}
+
+// DELETE /api/admin/mods/[id] — حذف تعريب (admin/owner فقط)
+export async function DELETE(_req: NextRequest, { params }: RouteParams) {
+  try {
+    const user = await requireModerator()
+    const { id } = await params
+
+    if (!canDelete(user)) {
+      return NextResponse.json(
+        { error: 'Forbidden — only admins can delete mods' },
+        { status: 403 }
+      )
+    }
+
+    const existing = await db.mod.findUnique({ where: { id }, select: { id: true } })
+    if (!existing) {
+      return NextResponse.json({ error: 'Mod not found' }, { status: 404 })
+    }
+
+    // cascading deletes هتمسح كل الـ relations تلقائياً
+    await db.mod.delete({ where: { id } })
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error('[admin/mods/[id] DELETE] failed:', err)
+    const status = (err as { status?: number })?.status || 500
+    return NextResponse.json({ error: 'Failed to delete mod' }, { status })
+  }
+}
