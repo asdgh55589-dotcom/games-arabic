@@ -13,10 +13,8 @@ import {
   Star,
   Flame,
   ExternalLink,
-  CheckSquare,
-  Square,
-  StarOff,
-  FlameOff,
+  Check,
+  Circle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -198,13 +196,13 @@ export default function AdminModsPage() {
               <Star className="ml-1 h-3 w-3" /> تمييز
             </Button>
             <Button size="sm" variant="outline" onClick={() => onBulkAction('featured', false)} disabled={bulkLoading}>
-              <StarOff className="ml-1 h-3 w-3" /> إلغاء التمييز
+              <Star className="ml-1 h-3 w-3" /> إلغاء التمييز
             </Button>
             <Button size="sm" variant="outline" onClick={() => onBulkAction('trending', true)} disabled={bulkLoading}>
               <Flame className="ml-1 h-3 w-3" /> إجراء رائج
             </Button>
             <Button size="sm" variant="outline" onClick={() => onBulkAction('trending', false)} disabled={bulkLoading}>
-              <FlameOff className="ml-1 h-3 w-3" /> إلغاء الرائج
+              <Flame className="ml-1 h-3 w-3" /> إلغاء الرائج
             </Button>
             <Button size="sm" variant="destructive" onClick={() => onBulkAction('delete')} disabled={bulkLoading}>
               <Trash2 className="ml-1 h-3 w-3" /> حذف {selected.size}
@@ -274,9 +272,9 @@ export default function AdminModsPage() {
                   <th className="w-10 px-4 py-3">
                     <button onClick={toggleSelectAll} className="text-muted-foreground hover:text-foreground">
                       {selected.size === mods.length && mods.length > 0 ? (
-                        <CheckSquare className="h-4 w-4" />
+                        <Check className="h-4 w-4" />
                       ) : (
-                        <Square className="h-4 w-4" />
+                        <Circle className="h-4 w-4" />
                       )}
                     </button>
                   </th>
@@ -294,9 +292,9 @@ export default function AdminModsPage() {
                     <td className="px-4 py-3">
                       <button onClick={() => toggleSelect(mod.id)} className="text-muted-foreground hover:text-foreground">
                         {selected.has(mod.id) ? (
-                          <CheckSquare className="h-4 w-4 text-primary" />
+                          <Check className="h-4 w-4 text-primary" />
                         ) : (
-                          <Square className="h-4 w-4" />
+                          <Circle className="h-4 w-4" />
                         )}
                       </button>
                     </td>
