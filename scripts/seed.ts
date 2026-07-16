@@ -1424,10 +1424,10 @@ async function main() {
   await db.user.deleteMany()
 
   console.log('Creating owner account...')
-  const ownerPasswordHash = await bcrypt.hash('admin123', 10)
+  const ownerPasswordHash = await bcrypt.hash('GA@dm!n2026#S3cure', 10)
   const owner = await db.user.create({
     data: {
-      username: 'Momen Hani',
+      username: 'GADMIx',
       email: 'owner@games-arabic.com',
       password: ownerPasswordHash,
       avatarUrl: 'https://i.pravatar.cc/300?img=68',
@@ -1439,11 +1439,11 @@ async function main() {
   })
 
   console.log('Creating staff users...')
-  const adminHash = await bcrypt.hash('admin123', 10)
-  const modHash = await bcrypt.hash('mod123', 10)
+  const adminHash = await bcrypt.hash('GA@dm!n2026#Mod3r', 10)
+  const modHash = await bcrypt.hash('GA@dm!n2026#Mod3r', 10)
   const staffUsers = [
-    { username: 'Admin_Hesham', email: 'admin@games-arabic.com', password: adminHash, avatarUrl: 'https://i.pravatar.cc/300?img=11', bio: 'مدير عام المنصة.', role: 'admin' },
-    { username: 'Mod_Karim', email: 'mod@games-arabic.com', password: modHash, avatarUrl: 'https://i.pravatar.cc/300?img=33', bio: 'مشرف المنصة.', role: 'moderator' },
+    { username: 'GAAdminHesham', email: 'admin@games-arabic.com', password: adminHash, avatarUrl: 'https://i.pravatar.cc/300?img=11', bio: 'مدير عام المنصة.', role: 'admin' },
+    { username: 'GAModKarim', email: 'mod@games-arabic.com', password: modHash, avatarUrl: 'https://i.pravatar.cc/300?img=33', bio: 'مشرف المنصة.', role: 'moderator' },
   ]
   for (const a of staffUsers) {
     await db.user.create({ data: { ...a, joinedAt: new Date(Date.now() - 365 * 86400000) } })
