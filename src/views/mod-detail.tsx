@@ -4,34 +4,15 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
-  Download,
   ThumbsUp,
-  Eye,
-  MessageSquare,
   Calendar,
-  HardDrive,
   FileArchive,
   Tag,
-  Clock,
-  Shield,
-  ExternalLink,
-  ChevronRight,
-  ChevronLeft,
-  Maximize2,
-  BarChart3,
   FileText,
-  User,
-  Award,
-  Star,
-  Crown,
-  Gamepad2,
-  Languages,
-  Layers,
-  CheckCircle,
-  Users,
   Youtube,
   Twitter,
-  Send,
+  MessageCircle,
+  UserRound,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -43,11 +24,8 @@ import { useToast } from '@/hooks/use-toast'
 import { useFetch } from '@/hooks/use-fetch'
 import { useDocumentTitle } from '@/hooks/use-document-title'
 import { ModCard, ModCardSkeleton } from '@/components/mod-card'
-import { ModDownloadSection } from '@/components/mod-download-section'
-import { ModGallery } from '@/components/mod-gallery'
-import { ModVideos } from '@/components/mod-videos'
-import { ModComments } from '@/components/mod-comments'
-import { ModTranslationTeam } from '@/components/mod-translation-team'
+import { ModStatsBadges } from '@/components/mod-stats'
+import { translateGameName, translateType } from '@/lib/arabic-names'
 import { formatNumber, formatDate, formatArabicDate, timeAgo, parseGalleryUrls, parseTags } from '@/lib/format'
 import { MarkdownRenderer } from '@/components/markdown-renderer'
 import { apiFetch } from '@/lib/api-client'
@@ -98,9 +76,9 @@ export function ModDetailPage() {
   if (!loading && !mod) {
     return (
       <div className="mx-auto max-w-[1200px] px-4 py-20 text-center">
-        <h1 className="text-2xl font-bold">Mod not found</h1>
+        <h1 className="text-2xl font-bold">التعريب غير موجود</h1>
         <Button asChild className="mt-4">
-          <Link href="/?view=mods">Back to Mods</Link>
+          <Link href="/?view=mods">العودة للتعديلات</Link>
         </Button>
       </div>
     )
@@ -193,7 +171,7 @@ export function ModDetailPage() {
           {/* البنر الخلفي طويل — يحتوي شريط التنقل + العنوان + شريط الإحصائيات.
               البنر كبير بحدود واضحة (border-bottom) عشان يتحدد بصرياً.
               المحتوى الرئيسي (الصورة + البطاقة) يبدأ بعد البنر مباشرة. */}
-          <div className="relative overflow-hidden" dir="rtl" style={{ minHeight: '360px' }}>
+          <div className="relative overflow-hidden" dir="rtl" style={{ minHeight: '560px' }}>
             {/* الصورة الخلفية */}
             <div className="absolute inset-0">
               <img
@@ -202,21 +180,31 @@ export function ModDetailPage() {
                 className="h-full w-full object-cover"
                 fetchPriority="high"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/85 to-background/40" />
-              <div className="absolute inset-0 bg-background/25" />
+              {/* gradient داكن لأسفل + overlays جانبية لضمان قراءة النص */}
+              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/90 to-background/50" />
+              <div className="absolute inset-0 bg-background/30" />
             </div>
 
-            {/* المحتوى فوق البنر — محاذى لأسفل عشان يبقى قريب من الصورة */}
-            <div className="relative mx-auto flex min-h-[360px] max-w-[1200px] flex-col justify-end px-4 pb-4 pt-6 lg:px-6 lg:pb-6 lg:pt-8">
-              {/* Breadcrumb — يبدأ من اليمين في RTL: التعريب / المنصة */}
-              <nav className="mb-4 flex flex-wrap items-center gap-1.5 text-sm text-foreground/70" aria-label="مسار التنقل">
-                <Link href="/" className="transition-colors hover:text-foreground">
-                  الرئيسية
+            {/* المحتوى فوق البنر — محاذاة للأسفل مع padding سفلي متوسط
+                عشان الإحصائيات تكون قريبة من الحد السفلي للبنر و بالتالي قريبة من الصورة. */}
+            <div className="relative mx-auto flex min-h-[560px] max-w-[1200px] flex-col justify-end px-4 pb-10 pt-14 lg:px-6 lg:pb-12 lg:pt-16">
+              {/* Breadcrumb — يبدأ من اليمين في RTL: التعديلات / اللعبة / القسم / اسم التعريب */}
+              <nav className="mb-6 flex flex-wrap items-center gap-1.5 text-sm text-foreground/70" aria-label="مسار التنقل">
+                <Link href="/?view=mods" className="transition-colors hover:text-foreground">
+                  التعديلات
                 </Link>
                 <span className="text-foreground/40">/</span>
-                <Link href={`/?view=platform&platform=${mod.game.platform}`} className="transition-colors hover:text-foreground">
-                  ARABIC {mod.game.platform}
+                <Link href={`/?view=game&slug=${mod.game.slug}`} className="transition-colors hover:text-foreground">
+                  {mod.game.name}
                 </Link>
+                {mod.category && (
+                  <>
+                    <span className="text-foreground/40">/</span>
+                    <Link href={`/?view=game&slug=${mod.game.slug}&cat=${mod.category.slug}`} className="transition-colors hover:text-foreground">
+                      {mod.category.name}
+                    </Link>
+                  </>
+                )}
                 <span className="text-foreground/40">/</span>
                 <span className="truncate font-medium text-foreground">{mod.name}</span>
               </nav>
@@ -226,42 +214,24 @@ export function ModDetailPage() {
                 {mod.name}
               </h1>
 
-              {/* شريط الإحصائيات — كل عنصر يظهر فقط إذا كانت بياناته موجودة */}
+              {/* شريط الإحصائيات — نفس النظام الموحّد المستخدم في ModCard (ModStatsBadges)
+                  عشان الأرقام تتطابق 100% مع البطاقة في باقي الموقع، بالإضافة لمعلومات
+                  الإصدار والتاريخ والسلسلة كشارات تكميلية (مش أرقام إحصائية). */}
               <div className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-2">
-                <StatBadge
-                  icon={<ThumbsUp className="h-3.5 w-3.5" />}
-                  value={formatNumber(shownEndorsements)}
-                  label="تأييدات"
-                />
+                <ModStatsBadges mod={{ endorsements: shownEndorsements, downloads: shownDownloads, views: shownViews }} />
                 <span className="text-foreground/30">•</span>
                 <StatBadge
-                  icon={<BarChart3 className="h-3.5 w-3.5" />}
-                  value={formatNumber(shownDownloads)}
-                  label="إجمالي التحميلات"
+                  icon={<FileText className="h-3.5 w-3.5" />}
+                  value={mod.version}
+                  label="الإصدار"
                 />
-                <span className="text-foreground/30">•</span>
-                <StatBadge
-                  icon={<Eye className="h-3.5 w-3.5" />}
-                  value={formatNumber(shownViews)}
-                  label="المشاهدات"
-                />
-                {mod.version && (
-                  <>
-                    <span className="text-foreground/30">•</span>
-                    <StatBadge
-                      icon={<FileText className="h-3.5 w-3.5" />}
-                      value={mod.version}
-                      label="الإصدار"
-                    />
-                  </>
-                )}
                 <span className="text-foreground/30">•</span>
                 <StatBadge
                   icon={<Calendar className="h-3.5 w-3.5" />}
                   value={formatArabicDate(mod.releaseDate)}
                   label="تاريخ النشر"
                 />
-                {mod.series && mod.series.trim() !== '' && (
+                {mod.series && (
                   <>
                     <span className="text-foreground/30">•</span>
                     <Link
@@ -282,235 +252,177 @@ export function ModDetailPage() {
             </div>
           </div>
 
-          {/* المحتوى الرئيسي — خلفية فاتحة تحت البنر */}
-          <div className="relative z-10 min-h-screen rounded-t-3xl bg-zinc-950 px-4 pb-12 pt-6 lg:px-6" dir="rtl">
-            <div className="mx-auto max-w-[1200px]">
+          {/* المحتوى الرئيسي — نرفعه فوق بقيمة سالبة margin-top
+              عشان الصورة تقرّب من الإحصائيات و تبان متصلة بالبنر. */}
+          <div className="relative z-10 mx-auto max-w-[1200px] px-4 lg:px-6" dir="rtl" style={{ marginTop: '-32px' }}>
             {/* ===== صورة كبيرة + بطاقة بيانات بجوارها ===== */}
-            <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-              {/* الصورة الكبيرة — أكبر عرض و طول */}
-              <div className="relative shrink-0 overflow-hidden rounded-lg border border-border bg-secondary sm:w-[72%]">
-                <img
-                  src={mod.imageUrl}
-                  alt={mod.name}
-                  className="aspect-[16/10] h-full w-full object-cover"
-                />
-                {/* شارات على الصورة */}
-                <div className="absolute right-3 top-3 flex gap-2">
-                  {mod.game?.platform && (
-                    <Badge variant="outline" className="border-border bg-background/80 backdrop-blur shadow-md">
-                      {mod.game.platform}
-                    </Badge>
-                  )}
+            {/* الصورة الرئيسية = صورة واحدة فقط (mod.imageUrl) بدون معرض أو أسهم */}
+            <div className="flex flex-col gap-8 sm:flex-row sm:items-start">
+              {/* الصورة الكبيرة — على اليمين في RTL، صورة واحدة فقط
+                  + بطاقة الناشر الطولية تحتها مباشرة (نقطة 6) */}
+              <div className="flex flex-col gap-4 sm:w-[65%]">
+                <div className="relative shrink-0 overflow-hidden rounded-lg border border-border bg-secondary">
+                  <img
+                    src={mod.imageUrl}
+                    alt={mod.name}
+                    className="aspect-video h-full w-full object-cover"
+                  />
+                  {/* شارات على الصورة */}
+                  <div className="absolute right-3 top-3 flex gap-2">
+                    {mod.game?.platform && (
+                      <Badge variant="outline" className="border-border bg-background/80 backdrop-blur shadow-md">
+                        {mod.game.platform}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
+
+                <PublisherCard author={mod.author} />
               </div>
 
-              {/* بطاقة معلومات التعريب — أعرض، ما تتجاوزش طول الصورة، فصل بخطوط فاصلة */}
-              <div className="flex w-[32%] shrink-0 flex-col self-stretch rounded-xl border border-border bg-gradient-to-br from-card to-card p-4 shadow-lg">
-                {/* البيانات — موزعة بالتساوي لتمليء ارتفاع البطاقة */}
-                <div className="flex flex-1 flex-col justify-between text-xs">
-                  <div className="space-y-0.5">
-                    <InfoRow icon={<Gamepad2 className="h-3.5 w-3.5" />} label="اسم اللعبة" value={mod.game.name} />
-                    {mod.arabicTitle && mod.arabicTitle.trim() !== '' && (
-                      <>
-                        <Divider />
-                        <InfoRow icon={<Languages className="h-3.5 w-3.5" />} label="الاسم بالعربي" value={mod.arabicTitle} />
-                      </>
-                    )}
-                    {mod.series && mod.series.trim() !== '' && (
-                      <>
-                        <Divider />
-                        <Link href={`/?view=series-detail&series=${encodeURIComponent(mod.series)}`} className="flex items-center justify-between gap-2 px-1 py-2 transition-colors hover:bg-accent/50 rounded">
-                          <span className="flex items-center gap-2 font-medium text-foreground"><Layers className="h-3.5 w-3.5 text-sky-400" />السلسلة</span>
-                          <span className="font-bold text-primary">{mod.series}</span>
-                        </Link>
-                      </>
-                    )}
-                    <Divider />
-                    <InfoRow icon={<Calendar className="h-3.5 w-3.5" />} label="تاريخ النشر" value={formatArabicDate(mod.releaseDate)} />
-                    {mod.translationType && mod.translationType.trim() !== '' && (
-                      <>
-                        <Divider />
-                        <InfoRow icon={<Shield className="h-3.5 w-3.5" />} label="نوع التعريب" value={mod.translationType} />
-                      </>
-                    )}
-                    {mod.version && mod.version.trim() !== '' && (
-                      <>
-                        <Divider />
-                        <InfoRow icon={<Tag className="h-3.5 w-3.5" />} label="إصدار التعريب" value={`v${mod.version}`} />
-                      </>
-                    )}
-                    {mod.compatibility && mod.compatibility.trim() !== '' && (
-                      <>
-                        <Divider />
-                        <InfoRow icon={<CheckCircle className="h-3.5 w-3.5" />} label="التوافق" value={mod.compatibility} />
-                      </>
-                    )}
-                    {mod.translationTeam && mod.translationTeam.trim() !== '' && (
-                      <>
-                        <Divider />
-                        <InfoRow icon={<Users className="h-3.5 w-3.5" />} label="فريق التعريب" value={mod.translationTeam} />
-                      </>
-                    )}
-                    {mod.fileSize && mod.fileSize.trim() !== '' && (
-                      <>
-                        <Divider />
-                        <InfoRow icon={<FileArchive className="h-3.5 w-3.5" />} label="الحجم" value={`${mod.fileSize} .${mod.fileFormat}`} />
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* الأوسمة في أسفل بطاقة البيانات */}
-                <div className="mt-3 border-t border-border pt-3">
-                  <div className="flex flex-wrap gap-1.5">
-                    <Badge variant="secondary" className="gap-1 bg-primary/10 text-primary"><Award className="h-3 w-3" />مؤلف موثّق</Badge>
-                    <Badge variant="secondary" className="gap-1 bg-primary/10 text-primary"><Star className="h-3 w-3" />مترجم نشط</Badge>
-                    <Badge variant="secondary" className="gap-1 bg-primary/10 text-primary"><Crown className="h-3 w-3" />مساهم مميز</Badge>
-                  </div>
+              {/* بطاقة "معلومات التعريب" — على اليسار في RTL */}
+              <div className="flex flex-1 flex-col rounded-lg border border-border bg-card p-6">
+                <h2 className="mb-4 text-lg font-bold">معلومات التعريب</h2>
+                <div className="space-y-4 text-sm">
+                  <DataRow label="اللعبة" value={mod.game.name} />
+                  <DataRow label="العنوان بالعربي" value={translateGameName(mod.game.name)} />
+                  <DataRow label="المنصّة" value={mod.game.platform} />
+                  <DataRow label="سلسلة" value={mod.series || '—'} />
+                  <DataRow label="تاريخ الإصدار/التعريب" value={formatDate(mod.releaseDate)} />
+                  <DataRow label="نوع التعريب" value={translateType(mod.translationType)} />
+                  <DataRow label="إصدار التعريب" value={`v${mod.version}`} />
+                  <DataRow label="التوافق" value={mod.compatibility || '—'} />
+                  <DataRow label="فريق التعريب" value={mod.translationTeam || mod.author.username} />
                 </div>
               </div>
             </div>
 
-            {/* ===== الأقسام (Tabs) — بعرض كامل ===== */}
-            <div className="mt-6 w-full">
-              <div className="min-w-0" dir="rtl">
+            {/* ===== الوسوم ===== */}
+            {tags.length > 0 && (
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground">الوسوم:</span>
+                {tags.map((t) => (
+                  <Badge key={t} variant="secondary" className="gap-1">
+                    <Tag className="h-3 w-3" /> {t}
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            {/* ===== الأقسام (Tabs) ===== */}
+            <div className="mt-6">
+              <div className="min-w-0">
                 <Tabs value={tab} onValueChange={setTab}>
-                  <TabsList className="w-full justify-start gap-2 overflow-x-auto p-1.5" dir="rtl">
-                    <TabsTrigger value="description" className="flex-none px-4 py-1.5">الوصف</TabsTrigger>
-                    <TabsTrigger value="changelog" className="flex-none px-4 py-1.5">سجل التغييرات</TabsTrigger>
-                    <TabsTrigger value="install" className="flex-none px-4 py-1.5">طريقة التركيب</TabsTrigger>
-                    <TabsTrigger value="translationTeam" className="flex-none px-4 py-1.5">فريق التعريب</TabsTrigger>
-                    <TabsTrigger value="images" className="flex-none px-4 py-1.5">
-                      معرض الصور <span className="mr-1 text-xs text-muted-foreground">({gallery.length})</span>
+                  <TabsList className="w-full justify-start overflow-x-auto">
+                    <TabsTrigger value="description">الوصف</TabsTrigger>
+                    <TabsTrigger value="files">
+                      تحميل <span className="ml-1 text-xs text-muted-foreground">1</span>
                     </TabsTrigger>
-                    <TabsTrigger value="videos" className="flex-none px-4 py-1.5">فيديوهات</TabsTrigger>
-                    <TabsTrigger value="files" className="flex-none px-4 py-1.5">التحميل</TabsTrigger>
-                    <TabsTrigger value="comments" className="flex-none px-4 py-1.5">
-                      التعليقات <span className="mr-1 text-xs text-muted-foreground">({formatNumber(mod.comments)})</span>
+                    <TabsTrigger value="images">
+                      معرض الصور <span className="ml-1 text-xs text-muted-foreground">({gallery.length})</span>
                     </TabsTrigger>
-                    {/* التبويبات المخصصة من الـ DB */}
-                    {mod.customTabs?.map((ct) => (
-                      <TabsTrigger key={ct.id} value={`custom-${ct.slug}`} className="flex-none px-4 py-1.5">
-                        {ct.name}
-                      </TabsTrigger>
-                    ))}
+                    <TabsTrigger value="changelog">سجل التغييرات</TabsTrigger>
+                    <TabsTrigger value="comments">
+                      تعليقات <span className="ml-1 text-xs text-muted-foreground">({formatNumber(mod.comments)})</span>
+                    </TabsTrigger>
                   </TabsList>
 
                   {/* Description tab */}
-                  <TabsContent value="description" className="mt-4" dir="rtl">
+                  <TabsContent value="description" className="mt-4">
                     <Card className="p-6">
                       <h2 className="mb-4 text-xl font-bold">عن هذا التعريب</h2>
-                      <p className="mb-4 text-foreground/80">{mod.summary}</p>
+                      <p className="mb-4 text-muted-foreground">{mod.summary}</p>
                       <Separator className="my-4" />
                       <MarkdownRenderer content={mod.description} />
                     </Card>
                   </TabsContent>
 
-                  {/* Changelog tab — سجل التغييرات */}
-                  <TabsContent value="changelog" className="mt-4" dir="rtl">
+                  {/* Files tab */}
+                  <TabsContent value="files" className="mt-4">
                     <Card className="p-6">
-                      <h2 className="mb-4 text-xl font-bold">سجل التغييرات</h2>
-                      <div className="mb-4 rounded-lg border border-border/60 bg-card/40 p-3">
-                        <div className="text-xs text-muted-foreground">الإصدار الحالي</div>
-                        <div className="text-lg font-bold text-foreground">v{mod.version}</div>
+                      <h2 className="mb-4 text-xl font-bold">الملفات</h2>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between rounded-lg border border-border/60 bg-card/40 p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="grid h-10 w-10 place-items-center rounded-md bg-primary/10 text-primary">
+                              <FileArchive className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <div className="font-medium">
+                                {mod.name.replace(/[^a-z0-9]+/gi, '_')}_v{mod.version}.{mod.fileFormat}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                الإصدار {mod.version} · {mod.fileSize} · .{mod.fileFormat}
+                              </div>
+                            </div>
+                          </div>
+                          <Button onClick={onDownload} disabled={downloading}>
+                            {downloading ? 'جارٍ التحميل…' : 'تحميل يدوي'}
+                          </Button>
+                        </div>
                       </div>
-                      {mod.changelog ? (
-                        <div className="prose prose-invert max-w-none">
-                          <MarkdownRenderer content={mod.changelog} />
-                        </div>
-                      ) : (
-                        <ul className="space-y-2 text-sm text-foreground/70">
-                          <li className="flex gap-2"><span className="text-primary">•</span> الإصدار الأول العام</li>
-                          <li className="flex gap-2"><span className="text-primary">•</span> إصلاحات توافق مع التعديلات الشائعة</li>
-                          <li className="flex gap-2"><span className="text-primary">•</span> تحسينات في الأداء للأجهزة الضعيفة</li>
-                          <li className="flex gap-2"><span className="text-primary">•</span> إصلاح أخطاء أبلغ عنها المجتمع</li>
-                        </ul>
-                      )}
+                      <div className="mt-6 grid grid-cols-2 gap-3 text-sm">
+                        <DataRow label="صيغة الملف" value={`.${mod.fileFormat}`} />
+                        <DataRow label="حجم الملف" value={mod.fileSize} />
+                        <DataRow label="تاريخ الإصدار" value={formatDate(mod.releaseDate)} />
+                        <DataRow label="آخر تحديث" value={timeAgo(mod.updatedAt)} />
+                      </div>
                     </Card>
                   </TabsContent>
 
-                  {/* Install guide tab — طريقة التركيب */}
-                  <TabsContent value="install" className="mt-4" dir="rtl">
+                  {/* Images tab — shows the active image large + all thumbnails */}
+                  <TabsContent value="images" className="mt-4">
+                    <Card className="overflow-hidden p-0">
+                      <div className="relative aspect-video bg-muted">
+                        <img
+                          src={gallery[safeActiveImage] || mod.imageUrl}
+                          alt={`${mod.name} screenshot ${safeActiveImage + 1}`}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <div className="p-4">
+                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+                          {gallery.map((g, i) => (
+                            <button
+                              key={i}
+                              onClick={() => setActiveImage(i)}
+                              className={`relative aspect-video overflow-hidden rounded border-2 transition-colors ${
+                                i === safeActiveImage ? 'border-primary' : 'border-border hover:border-primary/40'
+                              }`}
+                            >
+                              <img src={g} alt="" className="h-full w-full object-cover" loading="lazy" />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </Card>
+                  </TabsContent>
+
+                  {/* Changelog tab */}
+                  <TabsContent value="changelog" className="mt-4">
                     <Card className="p-6">
-                      <h2 className="mb-4 text-xl font-bold">طريقة التركيب</h2>
-                      {(mod as any).installGuide && (mod as any).installGuide.trim() !== '' ? (
-                        <MarkdownRenderer content={(mod as any).installGuide} />
-                      ) : (
-                        <div className="space-y-4">
-                          <div className="flex gap-3">
-                            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-bold text-primary">1</div>
-                            <div>
-                              <div className="font-semibold">حمّل ملف التعريب</div>
-                              <p className="mt-1 text-sm text-muted-foreground">اضغط على زر «التحميل» في قسم التحميل لتحميل ملف التعريب بصيغة {`.${mod.fileFormat}`} بحجم {mod.fileSize}.</p>
-                            </div>
-                          </div>
-                          <div className="flex gap-3">
-                            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-bold text-primary">2</div>
-                            <div>
-                              <div className="font-semibold">افتح ضغط الملف</div>
-                              <p className="mt-1 text-sm text-muted-foreground">استخدم برنامج فك الضغط (WinRAR / 7-Zip) لاستخراج محتويات الملف في مجلد مؤقت.</p>
-                            </div>
-                          </div>
-                          <div className="flex gap-3">
-                            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-bold text-primary">3</div>
-                            <div>
-                              <div className="font-semibold">انسخ ملفات التعريب</div>
-                              <p className="mt-1 text-sm text-muted-foreground">انسخ كل الملفات المستخرجة إلى مجلد تثبيت اللعبة الرئيسي.</p>
-                            </div>
-                          </div>
-                          <div className="flex gap-3">
-                            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-bold text-primary">4</div>
-                            <div>
-                              <div className="font-semibold">فعّل التعريب من إعدادات اللعبة</div>
-                              <p className="mt-1 text-sm text-muted-foreground">شغّل اللعبة، ادخل على إعدادات اللغة، واختر «العربية». أعد تشغيل اللعبة إذا لزم الأمر.</p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                      <h2 className="mb-4 text-xl font-bold">الإصدار {mod.version}</h2>
+                      <ul className="space-y-2 text-sm text-muted-foreground">
+                        <li className="flex gap-2"><span className="text-primary">•</span> Initial public release</li>
+                        <li className="flex gap-2"><span className="text-primary">•</span> Compatibility patches for popular overhaul mods</li>
+                        <li className="flex gap-2"><span className="text-primary">•</span> Performance optimizations for low-end systems</li>
+                        <li className="flex gap-2"><span className="text-primary">•</span> Bug fixes for edge cases reported by the community</li>
+                      </ul>
                     </Card>
-                  </TabsContent>
-
-                  {/* Translation Team tab — فريق التعريب */}
-                  <TabsContent value="translationTeam" className="mt-4" dir="rtl">
-                    <ModTranslationTeam teamMembers={mod.teamMembers || []} contactLinks={mod.contactLinks || []} />
-                  </TabsContent>
-
-                  {/* Images tab — معرض الصور الجديد */}
-                  <TabsContent value="images" className="mt-4" dir="rtl">
-                    <ModGallery images={gallery.length > 0 ? gallery : [mod.imageUrl]} modName={mod.name} />
-                  </TabsContent>
-
-                  {/* Videos tab — فيديوهات */}
-                  <TabsContent value="videos" className="mt-4" dir="rtl">
-                    <ModVideos videoGroups={mod.videoGroups || []} />
-                  </TabsContent>
-
-                  {/* Files / Download tab — التحميل */}
-                  <TabsContent value="files" className="mt-4" dir="rtl">
-                    <ModDownloadSection files={mod.files || []} />
                   </TabsContent>
 
                   {/* Comments tab */}
-                  <TabsContent value="comments" className="mt-4" dir="rtl">
+                  <TabsContent value="comments" className="mt-4">
                     <Card className="p-6">
-                      <ModComments modSlug={mod.slug} modOwnerName={mod.author?.username} />
+                      <h2 className="mb-4 text-xl font-bold">تعليقات المجتمع</h2>
+                      <CommentList />
                     </Card>
                   </TabsContent>
-
-                  {/* ===== التبويبات المخصصة (من الـ DB) ===== */}
-                  {mod.customTabs?.map((tab) => (
-                    <TabsContent key={tab.id} value={`custom-${tab.slug}`} className="mt-4" dir="rtl">
-                      <Card className="p-6">
-                        <h2 className="mb-4 text-xl font-bold">{tab.name}</h2>
-                        <MarkdownRenderer content={tab.content} />
-                      </Card>
-                    </TabsContent>
-                  ))}
                 </Tabs>
 
                 {/* Related mods */}
                 <div className="mt-8">
-                  <h2 className="mb-4 text-xl font-bold">قد يعجبك أيضاً</h2>
+                  <h2 className="mb-4 text-xl font-bold">المزيد من {mod.game.name}</h2>
                   {relatedLoading ? (
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                       {Array.from({ length: 4 }).map((_, i) => <ModCardSkeleton key={i} />)}
@@ -526,7 +438,6 @@ export function ModDetailPage() {
                 </div>
               </div>
             </div>
-            </div>
           </div>
         </>
       ) : null}
@@ -540,24 +451,6 @@ function DataRow({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between gap-2">
       <span className="text-muted-foreground">{label}</span>
       <span className="font-medium text-foreground">{value}</span>
-    </div>
-  )
-}
-
-/** خط فاصل بسيط بين صفوف المعلومات */
-function Divider() {
-  return <div className="h-px bg-border/50" />
-}
-
-/** صف معلومات: أيقونة + تسمة + قيمة، بدون إطار (الفصل بخط فاصل خارجي) */
-function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-2 px-1 py-2.5">
-      <span className="flex items-center gap-2 font-medium text-foreground">
-        <span className="text-sky-400">{icon}</span>
-        {label}
-      </span>
-      <span className="font-bold text-foreground">{value}</span>
     </div>
   )
 }
@@ -590,6 +483,57 @@ function StatBadge({ icon, value, label }: { icon: React.ReactNode; value: strin
   )
 }
 
+/** بطاقة الناشر — تصميم عريض (أفقي): صورة على اليمين، الاسم والنبذة في النص،
+ *  وزرار "تصفح الملف الشخصي" + أيقونات التواصل الاجتماعي على اليسار. */
+function PublisherCard({ author }: { author: ModDetail['author'] }) {
+  const socialLinks = [
+    author.youtubeUrl && { href: author.youtubeUrl, label: 'يوتيوب', icon: Youtube, color: 'text-red-500' },
+    author.twitterUrl && { href: author.twitterUrl, label: 'تويتر/X', icon: Twitter, color: 'text-sky-400' },
+    author.discordUrl && { href: author.discordUrl, label: 'ديسكورد', icon: MessageCircle, color: 'text-indigo-400' },
+  ].filter(Boolean) as { href: string; label: string; icon: typeof Youtube; color: string }[]
+
+  return (
+    <div className="flex flex-col items-center gap-4 rounded-lg border border-border bg-card p-4 sm:flex-row" dir="rtl">
+      <Avatar className="h-16 w-16 shrink-0 ring-2 ring-primary/30">
+        <AvatarImage src={author.avatarUrl || undefined} alt={author.username} />
+        <AvatarFallback>
+          <UserRound className="h-7 w-7 text-muted-foreground" />
+        </AvatarFallback>
+      </Avatar>
+
+      <div className="min-w-0 flex-1 text-center sm:text-right">
+        <p className="text-xs text-muted-foreground">نشره</p>
+        <h3 className="truncate text-base font-bold text-foreground">{author.username}</h3>
+        {author.bio && (
+          <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{author.bio}</p>
+        )}
+      </div>
+
+      <div className="flex shrink-0 items-center gap-2">
+        {socialLinks.map((s) => (
+          <a
+            key={s.label}
+            href={s.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={s.label}
+            title={s.label}
+            className="grid h-9 w-9 place-items-center rounded-full border border-border bg-secondary/40 transition-colors hover:border-primary/40 hover:bg-secondary"
+          >
+            <s.icon className={`h-4 w-4 ${s.color}`} />
+          </a>
+        ))}
+        <Button asChild size="sm" variant="outline">
+          <Link href={`/?view=profile&user=${author.username}`}>
+            <UserRound className="h-3.5 w-3.5" />
+            الملف الشخصي
+          </Link>
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 /** صندوق إحصائية: أيقونة + قيمة + تسمية */
 function StatBox({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
@@ -599,6 +543,93 @@ function StatBox({ icon, label, value }: { icon: React.ReactNode; label: string;
         <div className="text-sm font-bold text-foreground">{value}</div>
         <div className="text-[10px] text-muted-foreground">{label}</div>
       </div>
+    </div>
+  )
+}
+
+const SAMPLE_COMMENTS = [
+  {
+    user: 'ModFan2024',
+    avatar: 'https://i.pravatar.cc/100?img=1',
+    time: '2 days ago',
+    text: 'This mod completely transformed my playthrough. The attention to detail is incredible and it integrates seamlessly with my other mods. Highly recommended for anyone looking to enhance their experience.',
+    likes: 47,
+  },
+  {
+    user: 'QuietRanger',
+    avatar: 'https://i.pravatar.cc/100?img=2',
+    time: '5 days ago',
+    text: 'Works perfectly with the latest patch. Performance is smooth even on my older system. Thank you for keeping this maintained!',
+    likes: 23,
+  },
+  {
+    user: 'Nightblade',
+    avatar: 'https://i.pravatar.cc/100?img=3',
+    time: '1 week ago',
+    text: 'The visual overhaul alone is worth the install. Took me a few minutes to set up with Vortex, no issues at all.',
+    likes: 12,
+  },
+] as const
+
+function CommentList() {
+  const { toast } = useToast()
+  const [liked, setLiked] = useState<Set<number>>(new Set())
+
+  const toggleLike = (i: number) => {
+    setLiked((prev) => {
+      const next = new Set(prev)
+      if (next.has(i)) next.delete(i)
+      else next.add(i)
+      return next
+    })
+  }
+
+  const onReply = (user: string) => {
+    toast({
+      title: 'Replies coming soon',
+      description: `Replying to ${user} is not yet implemented in the demo.`,
+    })
+  }
+
+  return (
+    <div className="space-y-4">
+      {SAMPLE_COMMENTS.map((c, i) => {
+        const isLiked = liked.has(i)
+        const displayLikes = c.likes + (isLiked ? 1 : 0)
+        return (
+          <div key={i} className="flex gap-3">
+            <Avatar className="h-9 w-9">
+              <AvatarImage src={c.avatar} alt={c.user} />
+              <AvatarFallback>{c.user[0]}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <div className="flex items-baseline gap-2">
+                <span className="font-medium">{c.user}</span>
+                <span className="text-xs text-muted-foreground">{c.time}</span>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">{c.text}</p>
+              <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-foreground">
+                <button
+                  onClick={() => toggleLike(i)}
+                  className={`inline-flex items-center gap-1 transition-colors hover:text-primary ${
+                    isLiked ? 'text-primary' : ''
+                  }`}
+                  aria-pressed={isLiked}
+                  aria-label={`${isLiked ? 'Unlike' : 'Like'} comment by ${c.user}`}
+                >
+                  <ThumbsUp className={`h-3 w-3 ${isLiked ? 'fill-current' : ''}`} /> {displayLikes}
+                </button>
+                <button
+                  onClick={() => onReply(c.user)}
+                  className="hover:text-primary"
+                >
+                  Reply
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }

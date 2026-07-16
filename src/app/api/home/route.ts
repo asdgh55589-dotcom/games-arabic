@@ -30,15 +30,19 @@ export async function GET() {
       users,
       featuredGames,
       trendingMods,
-      latestModsRaw,
+      latestMods,
       topEndorsed,
       pcMods,
-      nsMods,
       ps4Mods,
       ps3Mods,
       ps2Mods,
       ps1Mods,
       seriesRows,
+      pcLatest,
+      ps4Latest,
+      ps3Latest,
+      ps2Latest,
+      ps1Latest,
     ] = await Promise.all([
       db.game.count(),
       db.mod.count(),
@@ -53,59 +57,48 @@ export async function GET() {
       db.mod.findMany({
         where: { isTrending: true },
         orderBy: { downloads: 'desc' },
-        take: 10,
+        take: 12,
         include: modInclude,
       }),
-      // أحدث تعريب من كل منصة — 2 من كل واحدة.
-      // بنجيب أكتر من 2 لكل منصة عشان نضمن وجود تنوع، و بعدين نختار 2 من كل واحدة
-      // و نخلطهم عشان كل المنصات تظهر بالتساوي في الـ Hero Slider.
-      // الترتيب updatedAt desc يضمن إننا ناخد الأحدث فعلاً.
-      // نجيب أكتر عدد (كل المودات) عشان نضمن إن كل المنصات ممثلة حتى لو
-      // كل المودات عندها نفس تاريخ التحديث.
       db.mod.findMany({
         orderBy: { updatedAt: 'desc' },
+        take: 8,
         include: modInclude,
       }),
       db.mod.findMany({
         orderBy: { endorsements: 'desc' },
-        take: 10,
+        take: 8,
         include: modInclude,
       }),
-      // تعديلات لكل منصة — 10 بطاقات لكل قسم
+      // تعديلات لكل منصة — 4 بطاقات لكل قسم
       db.mod.findMany({
         where: { game: { platform: 'PC' } },
         orderBy: { downloads: 'desc' },
-        take: 10,
-        include: modInclude,
-      }),
-      db.mod.findMany({
-        where: { game: { platform: 'NS' } },
-        orderBy: { downloads: 'desc' },
-        take: 10,
+        take: 4,
         include: modInclude,
       }),
       db.mod.findMany({
         where: { game: { platform: 'PS4' } },
         orderBy: { downloads: 'desc' },
-        take: 10,
+        take: 4,
         include: modInclude,
       }),
       db.mod.findMany({
         where: { game: { platform: 'PS3' } },
         orderBy: { downloads: 'desc' },
-        take: 10,
+        take: 4,
         include: modInclude,
       }),
       db.mod.findMany({
         where: { game: { platform: 'PS2' } },
         orderBy: { downloads: 'desc' },
-        take: 10,
+        take: 4,
         include: modInclude,
       }),
       db.mod.findMany({
         where: { game: { platform: 'PS1' } },
         orderBy: { downloads: 'desc' },
-        take: 10,
+        take: 4,
         include: modInclude,
       }),
       // أعلى 6 سلاسل حسب عدد التعريبات — نستخدم thumbnailUrl من أول
@@ -120,26 +113,39 @@ export async function GET() {
         },
         orderBy: { downloads: 'desc' },
       }),
+      // أحدث 3 تعريبات لكل منصة — تُستخدم في شريط "أحدث التعريبات" المتحرك
+      // اللي بديل البانر الرئيسي (بدل الأكثر تحميلاً، هنا بالأحدث فعلياً).
+      db.mod.findMany({
+        where: { game: { platform: 'PC' } },
+        orderBy: { createdAt: 'desc' },
+        take: 3,
+        include: modInclude,
+      }),
+      db.mod.findMany({
+        where: { game: { platform: 'PS4' } },
+        orderBy: { createdAt: 'desc' },
+        take: 3,
+        include: modInclude,
+      }),
+      db.mod.findMany({
+        where: { game: { platform: 'PS3' } },
+        orderBy: { createdAt: 'desc' },
+        take: 3,
+        include: modInclude,
+      }),
+      db.mod.findMany({
+        where: { game: { platform: 'PS2' } },
+        orderBy: { createdAt: 'desc' },
+        take: 3,
+        include: modInclude,
+      }),
+      db.mod.findMany({
+        where: { game: { platform: 'PS1' } },
+        orderBy: { createdAt: 'desc' },
+        take: 3,
+        include: modInclude,
+      }),
     ])
-
-    // ==== بناء latestMods — أحدث 2 من كل منصة، مختلطين بالتساوي ====
-    // الترتيب النهائي: PC, PS4, PS3, PS2, PS1, PC, PS4, PS3, PS2, PS1
-    // عشان يضمن إن كل المنصات تظهر للمستخدم في الـ Hero Slider.
-    const PLATFORMS_ORDER = ['PC', 'NS', 'PS4', 'PS3', 'PS2', 'PS1'] as const
-    const latestByPlatform: Record<string, typeof latestModsRaw> = {}
-    for (const p of PLATFORMS_ORDER) {
-      latestByPlatform[p] = latestModsRaw.filter(
-        (m) => m.game?.platform === p
-      ).slice(0, 2)
-    }
-    // اخلطهم: خد الأول من كل منصة، بعدين التاني من كل منصة
-    const latestMods: typeof latestModsRaw = []
-    for (let round = 0; round < 2; round++) {
-      for (const p of PLATFORMS_ORDER) {
-        const mod = latestByPlatform[p]?.[round]
-        if (mod) latestMods.push(mod)
-      }
-    }
 
     // جمّع السلاسل: لكل اسم سلسلة، احسب العدد وآخر تحميلات + التأييدات +
     // الصورة المصغرة (من أحدث تعريب).
@@ -167,12 +173,20 @@ export async function GET() {
 
     const modsByPlatform: Record<string, ModSummary[]> = {
       PC: pcMods as unknown as ModSummary[],
-      NS: nsMods as unknown as ModSummary[],
       PS4: ps4Mods as unknown as ModSummary[],
       PS3: ps3Mods as unknown as ModSummary[],
       PS2: ps2Mods as unknown as ModSummary[],
       PS1: ps1Mods as unknown as ModSummary[],
     }
+
+    // شريط "أحدث التعريبات" المتحرك — 3 أحدث من كل قسم منصة (15 عنصر إجمالاً)
+    const tickerMods: ModSummary[] = [
+      ...(pcLatest as unknown as ModSummary[]),
+      ...(ps4Latest as unknown as ModSummary[]),
+      ...(ps3Latest as unknown as ModSummary[]),
+      ...(ps2Latest as unknown as ModSummary[]),
+      ...(ps1Latest as unknown as ModSummary[]),
+    ]
 
     return NextResponse.json<HomeData>({
       stats: {
@@ -188,6 +202,7 @@ export async function GET() {
       topEndorsed: topEndorsed as unknown as ModSummary[],
       topSeries,
       modsByPlatform,
+      tickerMods,
     }, {
       headers: {
         // Home page aggregates many parallel DB queries — cache aggressively to
