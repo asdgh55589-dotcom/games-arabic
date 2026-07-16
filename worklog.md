@@ -1,36 +1,6 @@
 
 ---
-Task ID: 3
-Agent: main (Claude)
-Task: 11 تعديلات حرجة على بطاقة/صفحة تفاصيل التعريب، الـ Navbar، والصفحة الرئيسية
-
-Work Log:
-- أضفت حقلين جديدين لـ Mod model: `compatibility` و `translationTeam` (كانوا مطلوبين في بطاقة "معلومات التعريب" ومش موجودين في الـ schema)
-- أضفت `youtubeUrl` لـ User model (لبطاقة الناشر الجديدة)
-- حدّثت scripts/seed.ts عشان يملأ الحقول الجديدة (فرق تعريب واقعية + روابط يوتيوب لبعض المؤلفين)
-- أنشأت src/lib/arabic-names.ts: مصدر واحد لقواميس ترجمة أسماء الألعاب/الأقسام (كان مكرر جوه mod-card.tsx بس)
-- أنشأت src/components/mod-stats.tsx: نظام إحصائيات موحّد (ModStatsCompact + ModStatsBadges) يضمن تطابق الأرقام بين ModCard وصفحة تفاصيل التعريب 100%
-- أعدت تصميم src/components/mod-card.tsx بالكامل: الصورة بقت أكبر (aspect-[4/3])، العنوان والمؤلف اتنقلوا فوق الصورة (overlay + gradient) بدل ما يكونوا تحتها منفصلين
-- أنشأت src/components/series-card.tsx: بطاقة سلسلة موحّدة وحيدة، بعد ما اكتشفت إن home.tsx و series.tsx كانوا بيستخدموا تصميمين مختلفين تماماً لنفس نوع البطاقة — دلوقتي الاتنين بيستخدموا نفس المكوّن
-- أنشأت src/components/latest-mods-ticker.tsx: شريط متحرك احترافي (auto-scroll، بيوقف عند hover) بديل البانر الرئيسي القديم، بيعرض 3 أحدث تعريبات من كل منصة (15 عنصر) مع زرار "عرض التفاصيل" لكل عنصر
-- حدّثت src/app/api/home/route.ts: أضفت 5 queries لأحدث 3 مودز لكل منصة (tickerMods) بدل الاعتماد على بيانات مرتبة بالتحميلات
-- حدّثت src/views/home.tsx: شيلت الـ Hero section بالكامل (الإحصائيات + تصفح الألعاب + رفع تعديل)، استبدلته بـ LatestModsTicker، واستخدمت SeriesCard الموحّدة
-- حدّثت src/views/mod-detail.tsx:
-  - شلت شارة "تحميلات فريدة" الوهمية (كانت downloads*0.6)
-  - وحّدت شريط الإحصائيات فوق البنر مع ModStatsBadges (نفس نظام البطاقة)
-  - زودت المسافة بين breadcrumb والعنوان (mb-4 → mb-6)
-  - غيّرت اسم بطاقة "معلومات التعديل" لـ "معلومات التعريب" وأضفت كل الحقول المطلوبة (العنوان بالعربي، سلسلة، نوع التعريب، التوافق، فريق التعريب...)
-  - أضفت PublisherCard (بطاقة ناشر طولية) تحت الصورة الرئيسية مباشرة: أفاتار، اسم، نبذة، زرار الملف الشخصي، رابط يوتيوب
-  - ترجمت كل تسميات الـ Tabs للعربي (الوصف/تحميل/معرض الصور/سجل التغييرات/تعليقات) + باقي النصوص الإنجليزية المتبقية في الصفحة
-- حدّثت src/app/page.tsx: غيّرت fetch الـ navbar games لـ `sort=newest&limit=40` بدل `sort=mods&limit=20`، وحدّثت NavGame type
-- حدّثت src/components/navbar.tsx: كل قسم منصة في الـ Navbar بقى يعرض أحدث 3 ألعاب بالظبط (بالترتيب الزمني) بدل عدد متغير (4 أو 5) بترتيب شعبية
-- تأكدت من عدم وجود أخطاء TypeScript/ESLint في كل الملفات المعدّلة (نصبت الـ dependencies محلياً وشغلت tsc + eslint)
-- ملحوظة: تعذر تشغيل `prisma db push` / seed فعلياً في بيئة الفحص بسبب قيود شبكة (تحميل Prisma engines محظور) — لازم يتنفذوا يدوياً بعد استلام المشروع
-
-Stage Summary:
-- كل الـ 11 نقطة المطلوبة + التوضيحات الإضافية (توحيد بيانات البطاقة، تكبير صورة البطاقة نفسها، زرار "عرض التفاصيل" بالـ ticker، توحيد قوالب بطاقات السلاسل) اتنفذت
-- المشروع محتاج خطوتين قبل التشغيل: `npx prisma db push` ثم إعادة الـ seed، عشان الحقول الجديدة (compatibility, translationTeam, youtubeUrl) تتفعّل في قاعدة البيانات
-
+Task ID: 2
 Agent: main (Super Z)
 Task: إصلاح مشكلة اختفاء التعديلات والسلاسل من الصفحة الرئيسية
 
@@ -58,3 +28,50 @@ Stage Summary:
 - /api/mods?platform=PC بيرجع 41 mod كله PC (pagination صحيح)
 - الصفحة الرئيسية فيها كل الأقسام: أحدث الإصدارات + 5 أقسام منصات + التعديلات الرائجة + سلاسل التعريبات + المفضلة لدى المجتمع
 - البطاقات لسه بشكلها الأصلي: شارات المنصة + جديد/محدّث + البيانات (clock/upload/filesize) + الإحصائيات (تأييد/تحميل/مشاهدة)
+
+---
+Task ID: 3
+Agent: main (Super Z)
+Task: إضافة منصة Nintendo Switch (ARABIC NS) كمنصة جديدة كاملة
+
+Work Log:
+- تأكدت إن البنية التحتية لـ NS موجودة مسبقاً في:
+  - src/views/home.tsx (PLATFORMS array فيه NS)
+  - src/components/navbar.tsx (PLATFORMS array فيه NS)
+  - src/app/api/home/route.ts (nsMods query + PLATFORMS_ORDER فيه NS)
+  - src/app/api/mods/route.ts (PLATFORM_KEYS فيه NS)
+- أضفت 'NS': 'ألعاب نينتندو سويتش' لـ PLATFORM_ARABIC map في src/views/platform.tsx
+- أضفت subtitle عربي لصفحة المنصة يظهر تحت الـ H1
+- أنشأت NintendoSwitchIcon في src/components/platform-icons.tsx (SVG بسيط لشعار السويتش)
+- وسّعتgames list في scripts/seed.ts بإضافة 6 ألعاب نينتندو سويتش جديدة:
+  * The Legend of Zelda: Tears of the Kingdom (2023, featured)
+  * Super Smash Bros. Ultimate (2018)
+  * Pokémon Scarlet (2022)
+  * Xenoblade Chronicles 3 (2022)
+  * Fire Emblem: Three Houses (2019)
+  * Mario Kart 8 Deluxe (2017)
+  (كان فيه 3 ألعاب قبل كده: Zelda BOTW + Super Mario Odyssey + Animal Crossing → المجموع 9 ألعاب NS)
+- أضفت SERIES_MAP entries لكل ألعاب NS:
+  * Zelda BOTW + TotK → 'The Legend of Zelda'
+  * Super Mario Odyssey → 'Super Mario'
+  * Mario Kart 8 Deluxe → 'Mario Kart'
+  * Animal Crossing: New Horizons → 'Animal Crossing'
+  * Super Smash Bros. Ultimate → 'Super Smash Bros'
+  * Pokémon Scarlet → 'Pokémon'
+  * Xenoblade Chronicles 3 → 'Xenoblade Chronicles'
+  * Fire Emblem: Three Houses → 'Fire Emblem'
+- أضفت GAME_IMAGES entries لكل ألعاب NS بصور Unsplash مناسبة
+- أضفت GAME_ARABIC_NAMES entries في src/components/mod-card.tsx لكل ألعاب NS (ترجمة عربية للأسماء)
+- أضفت CATEGORY_ARABIC_NAMES جديدة: Simulation → محاكاة, Adventure → مغامرات, Fighting → قتال, Racing → سباقات
+- أضفت 10 mod templates جديدة بأسماء Nintendo-friendly (Arabic UI Patch, Arabic Subtitles Pack, Arabic Voice Pack, etc.)
+- عملت re-seed للـ database بنجاح: 28 games + 123 mods
+
+Stage Summary:
+- إجمالي الألعاب: 28 (PC: 6, NS: 9, PS4: 4, PS3: 3, PS2: 3, PS1: 3)
+- إجمالي التعريبات: 123 (NS لوحدها: 38 تعريب موزعة على 9 ألعاب)
+- /api/mods?platform=NS بيرجع 38 mod على 8 صفحات
+- /api/home بيرجع 10 mods لـ NS في modsByPlatform.NS
+- topSeries بتظهر فيها "The Legend of Zelda: 9 mods" (تاني أعلى سلسلة بعد God of War)
+- latestMods بتخلط ألعاب NS مع باقي المنصات في الـ Hero Slider
+- صفحة /?view=platform&platform=NS بتشتغل صح وبتعرض "ARABIC NS" + "ألعاب نينتندو سويتش"
+- كل البطاقات بتعرض شارة NS وأسماء الألعاب مترجمة للعربية

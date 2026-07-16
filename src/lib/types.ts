@@ -5,11 +5,9 @@ export interface Author {
   username: string
   email: string
   avatarUrl: string | null
+  bannerUrl: string | null
   bio: string | null
-  youtubeUrl: string | null
-  twitterUrl: string | null
-  discordUrl: string | null
-  role: string
+  role: string  // member | moderator | admin | owner
   joinedAt: string
 }
 
@@ -62,9 +60,8 @@ export interface ModSummary {
   ratingCount: number
   tags: string
   series: string  // اسم السلسلة (مثل God of War)
+  translationTeam: string  // فريق التعريب أو المترجم المستقل
   translationType: string  // official | unofficial
-  compatibility: string  // التوافق
-  translationTeam: string  // فريق التعريب
   isFeatured: boolean
   isTrending: boolean
   isLatest: boolean
@@ -76,11 +73,108 @@ export interface ModSummary {
   category: { name: string; slug: string } | null
 }
 
+// ===== أنواع البيانات الجديدة للـ relations =====
+export interface ModFileLink {
+  id: string
+  url: string
+  label: string | null
+  order: number
+}
+
+export interface ModFile {
+  id: string
+  modId: string
+  title: string
+  description: string | null
+  alert: string | null
+  version: string
+  releaseDate: string
+  updatedAt: string
+  fileSize: string
+  fileFormat: string
+  order: number
+  links: ModFileLink[]
+}
+
+export interface ModTeamMember {
+  id: string
+  modId: string
+  name: string
+  avatarUrl: string | null
+  role: string
+  contribution: string | null
+  order: number
+}
+
+export interface ModContactLink {
+  id: string
+  modId: string
+  type: string
+  label: string
+  url: string
+  order: number
+}
+
+export interface ModVideo {
+  id: string
+  groupId: string
+  title: string
+  url: string
+  thumbnail: string | null
+  duration: string | null
+  views: number
+  channel: string | null
+  order: number
+}
+
+export interface ModVideoGroup {
+  id: string
+  modId: string
+  name: string
+  order: number
+  videos: ModVideo[]
+}
+
+export interface ModCustomTab {
+  id: string
+  modId: string
+  name: string
+  slug: string
+  content: string
+  order: number
+  visible: boolean
+}
+
+export interface ModCommentType {
+  id: string
+  modId: string
+  userId: string | null
+  guestName: string
+  guestAvatar: string | null
+  parentId: string | null
+  text: string
+  likes: number
+  dislikes: number
+  isPinned: boolean
+  isEdited: boolean
+  createdAt: string
+  updatedAt: string
+  replies?: ModCommentType[]
+}
+
 export interface ModDetail extends ModSummary {
   description: string
+  changelog: string
+  arabicTitle: string
+  compatibility: string
   author: Author
   game: GameSummary
   category: Category | null
+  files: ModFile[]
+  teamMembers: ModTeamMember[]
+  contactLinks: ModContactLink[]
+  videoGroups: ModVideoGroup[]
+  customTabs: ModCustomTab[]
 }
 
 export interface PaginatedMods {
@@ -120,7 +214,6 @@ export interface HomeData {
   topEndorsed: ModSummary[]
   topSeries: SeriesSummary[]
   modsByPlatform: Record<string, ModSummary[]>
-  tickerMods: ModSummary[]
 }
 
 export interface EndorseResponse {

@@ -48,10 +48,10 @@ export function SeriesPage() {
                   src={s.thumbnailUrl}
                   alt=""
                   loading="lazy"
-                  className="absolute inset-0 h-full w-full object-cover opacity-20 transition-opacity group-hover:opacity-30"
+                  className="absolute inset-0 h-full w-full object-cover opacity-35 transition-opacity group-hover:opacity-50"
                 />
               )}
-              <div className="absolute inset-0 bg-gradient-to-r from-card via-card/90 to-card/60" />
+              <div className="absolute inset-0 bg-gradient-to-r from-card via-card/75 to-card/40" />
               <div className="relative">
                 <h3 className="text-lg font-bold text-foreground group-hover:text-primary">{s.name}</h3>
                 <p className="mt-1 text-xs text-muted-foreground">
