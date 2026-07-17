@@ -378,13 +378,13 @@ export default function ModForm({ modId }: ModFormProps) {
       {/* ===== 3. معلومات الملف الأساسية ===== */}
       <Section title="معلومات الملف الأساسية">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Field label="الإصدار" required>
+          <Field label="الإصدار">
             <Input value={version} onChange={(e) => setVersion(e.target.value)} placeholder="1.0.0" />
           </Field>
-          <Field label="حجم الملف" required hint="بالصيغة: MB 200">
+          <Field label="حجم الملف" hint="بالصيغة: MB 200">
             <Input value={fileSize} onChange={(e) => setFileSize(e.target.value)} placeholder="MB 200" />
           </Field>
-          <Field label="صيغة الملف" required>
+          <Field label="صيغة الملف">
             <select
               value={fileFormat}
               onChange={(e) => setFileFormat(e.target.value)}

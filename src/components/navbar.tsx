@@ -34,6 +34,13 @@ export function Navbar({ games }: NavbarProps) {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [activeSuggestionIdx, setActiveSuggestionIdx] = useState(-1)
+  const [siteName, setSiteName] = useState('GAMES ARABIC')
+
+  useEffect(() => {
+    fetch('/api/settings').then(r => r.json()).then(({ settings }) => {
+      if (settings.site_name) setSiteName(settings.site_name)
+    }).catch(() => {})
+  }, [])
 
   const searchRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -156,8 +163,8 @@ export function Navbar({ games }: NavbarProps) {
               <SheetTitle className="text-left">
                 <Link href="/" className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
                   <span className="text-2xl font-bold tracking-tight">
-                    <span className="text-primary">GAMES</span>
-                    <span className="text-foreground"> ARABIC</span>
+                    <span className="text-primary">{siteName.split(' ')[0] || 'GAMES'}</span>
+                    <span className="text-foreground"> {siteName.split(' ').slice(1).join(' ') || 'ARABIC'}</span>
                   </span>
                 </Link>
               </SheetTitle>
@@ -192,8 +199,8 @@ export function Navbar({ games }: NavbarProps) {
         {/* Logo — English, على اليسار */}
         <Link href="/" className="flex shrink-0 items-center gap-1" aria-label="Games Arabic home">
           <span className="text-2xl font-extrabold tracking-tight">
-            <span className="text-gradient">GAMES</span>
-            <span className="text-foreground"> ARABIC</span>
+            <span className="text-gradient">{siteName.split(' ')[0] || 'GAMES'}</span>
+            <span className="text-foreground"> {siteName.split(' ').slice(1).join(' ') || 'ARABIC'}</span>
           </span>
         </Link>
 

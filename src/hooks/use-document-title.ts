@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 
-const BASE_TITLE = 'NexusMods — Mod Your Game'
+const BASE_TITLE = 'GAMES ARABIC — تعريب الألعاب'
 
 /**
  * Set the document title for the current view. Pass a non-empty title to
@@ -14,7 +14,7 @@ const BASE_TITLE = 'NexusMods — Mod Your Game'
 export function useDocumentTitle(title?: string | null) {
   useEffect(() => {
     if (title) {
-      document.title = `${title} · NexusMods`
+      document.title = `${title} · GAMES ARABIC`
     } else {
       document.title = BASE_TITLE
     }

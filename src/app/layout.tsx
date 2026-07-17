@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SmoothScrollProvider } from "@/components/smooth-scroll-provider";
+import { SeoUpdater } from "@/components/seo-updater";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,6 +38,7 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
+          <SeoUpdater />
           <SmoothScrollProvider>
             {children}
           </SmoothScrollProvider>

@@ -1,30 +1,57 @@
+'use client'
+
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { Send, Bot, Gamepad2, Smartphone, Monitor } from 'lucide-react'
 
+interface SocialLinks {
+  telegram?: string
+  discord?: string
+  youtube?: string
+  twitter?: string
+}
+
 export function Footer() {
+  const [siteName, setSiteName] = useState('GAMES ARABIC')
+  const [social, setSocial] = useState<SocialLinks>({})
+
+  useEffect(() => {
+    fetch('/api/settings').then(r => r.json()).then(({ settings }) => {
+      if (settings.site_name) setSiteName(settings.site_name)
+      setSocial({
+        telegram: settings.telegram || '',
+        discord: settings.discord || '',
+        youtube: settings.youtube || '',
+        twitter: settings.twitter || '',
+      })
+    }).catch(() => {})
+  }, [])
+
+  const nameParts = siteName.split(' ')
+
   return (
     <footer className="mt-auto border-t border-border bg-card/30" dir="rtl">
       <div className="mx-auto max-w-[1200px] px-4 py-12">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4 lg:grid-cols-6">
-          {/* القسم الأول: الشعار + الوصف + أيقونات تليجرام */}
           <div className="col-span-2">
             <Link href="/" className="flex items-center gap-1">
               <span className="text-xl font-extrabold tracking-tight">
-                <span className="text-gradient">GAMES</span>
-                <span className="text-foreground"> ARABIC</span>
+                <span className="text-gradient">{nameParts[0] || 'GAMES'}</span>
+                <span className="text-foreground"> {nameParts.slice(1).join(' ') || 'ARABIC'}</span>
               </span>
             </Link>
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-muted-foreground">
               منصة تعريب وأرشفة الألعاب العربية الأولى من نوعها. نوفر لك أحدث التعريبات النسخ المعربة الكاملة لكل ألعابك المفضلة على PC و Nintendo Switch و PlayStation بأجياله جميعاً، مع روابط تحميل مباشرة ومجتمع عربي متكامل للدعم والمشاركة.
             </p>
 
-            {/* أيقونات منصات تليجرام */}
             <div className="mt-5">
               <p className="mb-2 text-xs font-semibold text-muted-foreground">قنواتنا على تليجرام</p>
               <div className="flex flex-wrap gap-2">
-                <SocialIcon href="https://t.me/GAMES_ARABIC" label="جروب المجتمع">
-                  <Send className="h-4 w-4" />
-                </SocialIcon>
+                {social.telegram && (
+                  <SocialIcon href={social.telegram} label="جروب المجتمع">
+                    <Send className="h-4 w-4" />
+                  </SocialIcon>
+                )}
                 <SocialIcon href="https://t.me/PS_AR_PC" label="تعريبات PlayStation">
                   <Gamepad2 className="h-4 w-4" />
                 </SocialIcon>
@@ -41,7 +68,6 @@ export function Footer() {
             </div>
           </div>
 
-          {/* الأقسام */}
           <FooterCol title="الأقسام">
             <FooterLink href="/?view=platform&platform=PC">ARABIC PC</FooterLink>
             <FooterLink href="/?view=platform&platform=NS">ARABIC NS</FooterLink>
@@ -51,20 +77,28 @@ export function Footer() {
             <FooterLink href="/?view=platform&platform=PS1">ARABIC PS1</FooterLink>
           </FooterCol>
 
-          {/* استكشاف */}
           <FooterCol title="استكشاف">
             <FooterLink href="/?view=series">سلاسل التعريبات</FooterLink>
             <FooterLink href="/?view=support">دعم الأقسام</FooterLink>
             <FooterLink href="/?view=problems">مشاكل وحلول</FooterLink>
           </FooterCol>
 
-          {/* المجتمع */}
           <FooterCol title="المجتمع">
-            <FooterLink href="https://t.me/GAMES_ARABIC" target="_blank">جروب تليجرام</FooterLink>
+            {social.telegram && (
+              <FooterLink href={social.telegram} target="_blank">جروب تليجرام</FooterLink>
+            )}
+            {social.discord && (
+              <FooterLink href={social.discord} target="_blank">سيرفر Discord</FooterLink>
+            )}
+            {social.youtube && (
+              <FooterLink href={social.youtube} target="_blank">قناة YouTube</FooterLink>
+            )}
+            {social.twitter && (
+              <FooterLink href={social.twitter} target="_blank">Twitter / X</FooterLink>
+            )}
             <FooterLink href="/?view=about">من نحن</FooterLink>
           </FooterCol>
 
-          {/* حول */}
           <FooterCol title="حول">
             <FooterLink href="/?view=about">من نحن</FooterLink>
             <FooterLink href="/?view=terms">شروط الخدمة</FooterLink>
@@ -72,10 +106,9 @@ export function Footer() {
           </FooterCol>
         </div>
 
-        {/* أسفل الـ footer */}
         <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-border pt-6 sm:flex-row">
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} GAMES ARABIC — جيمز عربي. صُنع بكل ❤️ من مصر للعالم العربي.
+            © {new Date().getFullYear()} {siteName} — صُنع بكل ❤️ من مصر للعالم العربي.
           </p>
           <p className="text-xs text-muted-foreground">
             من اللاعب للاعب.

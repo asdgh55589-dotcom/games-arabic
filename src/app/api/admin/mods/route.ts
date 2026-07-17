@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
 
     // ===== التحقق من الحقول المطلوبة =====
-    const required = ['name', 'summary', 'description', 'gameId', 'version', 'fileSize', 'fileFormat', 'thumbnailUrl', 'imageUrl']
+    const required = ['name', 'summary', 'description', 'gameId', 'thumbnailUrl', 'imageUrl']
     for (const field of required) {
       if (!body[field]) {
         return NextResponse.json(
@@ -135,9 +135,9 @@ export async function POST(req: NextRequest) {
           thumbnailUrl: body.thumbnailUrl,
           imageUrl: body.imageUrl,
           galleryUrls: Array.isArray(body.galleryUrls) ? body.galleryUrls.join(',') : (body.galleryUrls || ''),
-          version: body.version,
-          fileSize: body.fileSize,
-          fileFormat: body.fileFormat,
+          version: body.version || '1.0.0',
+          fileSize: body.fileSize || 'MB 0',
+          fileFormat: body.fileFormat || 'zip',
           tags: Array.isArray(body.tags) ? body.tags.join(',') : (body.tags || ''),
           series: body.series || '',
           translationTeam: body.translationTeam || '',

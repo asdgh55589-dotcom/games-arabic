@@ -40,10 +40,16 @@ const SETTING_GROUPS = [
     label: 'تحسين محركات البحث (SEO)',
     icon: Search,
     fields: [
+      { key: 'site_url', label: 'رابط الموقع الرئيسي', type: 'text', placeholder: 'https://games-arabic.vercel.app' },
       { key: 'meta_title', label: 'عنوان Meta', type: 'text', placeholder: 'GAMES ARABIC - تعريب ألعاب' },
       { key: 'meta_description', label: 'وصف Meta', type: 'textarea', placeholder: 'منصة تعريب الألعاب...' },
-      { key: 'og_image', label: 'صورة OG', type: 'text', placeholder: 'https://...' },
-      { key: 'robots_txt', label: 'Robot Rules', type: 'text', placeholder: 'index, follow' },
+      { key: 'og_image', label: 'صورة OG (Open Graph)', type: 'text', placeholder: 'https://...' },
+      { key: 'og_locale', label: 'لغة OG', type: 'text', placeholder: 'ar_SA' },
+      { key: 'og_type', label: 'نوع المحتوى OG', type: 'select', options: ['website', 'article'] },
+      { key: 'theme_color', label: 'لون الثيم (theme-color)', type: 'text', placeholder: '#eab308' },
+      { key: 'robots_txt', label: 'قواعد الم crawler', type: 'textarea', placeholder: 'User-agent: *\nAllow: /' },
+      { key: 'google_analytics_id', label: 'معرّف Google Analytics', type: 'text', placeholder: 'G-XXXXXXXXXX' },
+      { key: 'google_search_console', label: 'معرّف Google Search Console', type: 'text', placeholder: 'verification code' },
     ],
   },
   {
