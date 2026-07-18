@@ -12,9 +12,10 @@ datasource db {
 
 model User {
   id            String     @id @default(cuid())
+  supabaseId    String?    @unique  // Supabase Auth user ID
   username      String     @unique
   email         String     @unique
-  password      String?    // hashed — null للمستخدمين العاديين (OAuth لاحقاً)
+  password      String?    // hashed — null للمستخدمين عبر Supabase Auth
   avatarUrl     String?
   bannerUrl     String?    // صورة الخلفية بمقاس اليوتيوب (2560×1440)
   bio           String?

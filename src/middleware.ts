@@ -1,18 +1,20 @@
 /**
- * middleware.ts — حماية الـ routes الخاصة بلوحة التحكم.
+ * middleware.ts — حماية الـ routes الخاصة بلوحة التحكم + تحديث Supabase session.
  *
  * مهم: الـ middleware بيشتغل في Edge runtime، فمينفعش نستورد Prisma أو أي
- * Node-only module هنا. بنستورد بس دوال JWT من jose مباشرة.
+ * Node-only module هنا. بنستورد بس دوال JWT من jose مباشرة + Supabase SSR.
  *
- *   - /admin/*         → لازم يكون مسجّل دخول (moderator أو أعلى)
+ *   - /admin/*         → لازم يكون مسجّل دخول (moderator أو أعلى) — admin JWT
  *   - /api/admin/*     → نفس الشرط
  *   - /admin/login     → مسموح للجميع (للتسجيل)
  *   - /api/auth/login  → مسموح للجميع
+ *   - باقي الـ routes → Supabase session refresh
  */
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
+import { updateSession } from '@/lib/supabase/middleware'
 
 const SESSION_COOKIE_NAME = 'ga_admin_session'
 const JWT_SECRET = new TextEncoder().encode(
@@ -63,9 +65,11 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  return NextResponse.next()
+  // تحديث Supabase session لباقي الـ routes
+  const { response } = await updateSession(req)
+  return response
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/api/admin/:path*'],
+  matcher: ['/admin/:path*', '/api/admin/:path*', '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)'],
 }

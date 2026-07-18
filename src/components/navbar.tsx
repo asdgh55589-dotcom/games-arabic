@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Search, Menu, ChevronDown, Upload, LogIn, X, TrendingUp, Flame, Package, Users } from 'lucide-react'
+import { Search, Menu, ChevronDown, Upload, LogIn, X, TrendingUp, Flame, Package, Users, LogOut, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -12,6 +12,7 @@ import { ThemeSwitcher } from '@/components/theme-switcher'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/format'
 import { useDebounced } from '@/hooks/use-debounced'
+import { createClient } from '@/lib/supabase/client'
 import type { SearchResponse } from '@/lib/types'
 
 interface NavbarProps {
@@ -35,11 +36,20 @@ export function Navbar({ games }: NavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [activeSuggestionIdx, setActiveSuggestionIdx] = useState(-1)
   const [siteName, setSiteName] = useState('GAMES ARABIC')
+  const [currentUser, setCurrentUser] = useState<{ id: string; username: string; email: string; role: string; avatarUrl?: string | null } | null>(null)
 
   useEffect(() => {
     fetch('/api/settings').then(r => r.json()).then(({ settings }) => {
       if (settings.site_name) setSiteName(settings.site_name)
     }).catch(() => {})
+  }, [])
+
+  // التحقق من تسجيل الدخول
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((data) => setCurrentUser(data?.user || null))
+      .catch(() => setCurrentUser(null))
   }, [])
 
   const searchRef = useRef<HTMLDivElement>(null)
@@ -189,11 +199,33 @@ export function Navbar({ games }: NavbarProps) {
                 <div className="flex items-center justify-end px-3">
                   <ThemeSwitcher />
                 </div>
-                <Button asChild className="w-full">
-                  <Link href="/?view=login" onClick={() => setMobileOpen(false)}>
-                    <LogIn className="mr-2 h-4 w-4" /> تسجيل الدخول
-                  </Link>
-                </Button>
+                {currentUser ? (
+                  <>
+                    <Button asChild variant="ghost" className="w-full">
+                      <Link href={`/?view=profile&user=${currentUser.username}`} onClick={() => setMobileOpen(false)}>
+                        <User className="mr-2 h-4 w-4" /> {currentUser.username}
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="w-full text-destructive"
+                      onClick={async () => {
+                        await fetch('/api/auth/logout', { method: 'POST' })
+                        setCurrentUser(null)
+                        setMobileOpen(false)
+                        window.location.href = '/'
+                      }}
+                    >
+                      <LogOut className="mr-2 h-4 w-4" /> تسجيل الخروج
+                    </Button>
+                  </>
+                ) : (
+                  <Button asChild className="w-full">
+                    <Link href="/?view=login" onClick={() => setMobileOpen(false)}>
+                      <LogIn className="mr-2 h-4 w-4" /> تسجيل الدخول
+                    </Link>
+                  </Button>
+                )}
               </div>
             </nav>
           </SheetContent>
@@ -333,11 +365,34 @@ export function Navbar({ games }: NavbarProps) {
         <div className="hidden items-center gap-4 sm:flex">
           <ThemeSwitcher />
 
-          <Button asChild variant="ghost" size="sm" className="text-sm font-medium text-foreground hover:text-primary">
-            <Link href="/?view=login">
-              تسجيل الدخول
-            </Link>
-          </Button>
+          {currentUser ? (
+            <div className="flex items-center gap-2">
+              <Button asChild variant="ghost" size="sm" className="text-sm font-medium text-foreground hover:text-primary">
+                <Link href={`/?view=profile&user=${currentUser.username}`}>
+                  <User className="ml-1.5 h-4 w-4" />
+                  {currentUser.username}
+                </Link>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-sm font-medium text-muted-foreground hover:text-destructive"
+                onClick={async () => {
+                  await fetch('/api/auth/logout', { method: 'POST' })
+                  setCurrentUser(null)
+                  window.location.href = '/'
+                }}
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <Button asChild variant="ghost" size="sm" className="text-sm font-medium text-foreground hover:text-primary">
+              <Link href="/?view=login">
+                تسجيل الدخول
+              </Link>
+            </Button>
+          )}
           <Button asChild size="sm" className="bg-gradient-primary text-primary-foreground hover:opacity-90">
             <Link href="/?view=upload">
               <Upload className="mr-1.5 h-4 w-4" /> نشر تعريب

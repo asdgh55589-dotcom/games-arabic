@@ -1,16 +1,14 @@
 import { NextResponse } from 'next/server'
-import { clearSessionCookie } from '@/lib/auth'
+import { createClient } from '@/lib/supabase/server'
 
 // POST /api/auth/logout — تسجيل الخروج
 export async function POST() {
   try {
-    await clearSessionCookie()
+    const supabase = await createClient()
+    await supabase.auth.signOut()
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error('[auth/logout] failed:', err)
-    return NextResponse.json(
-      { error: 'حدث خطأ أثناء تسجيل الخروج' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to logout' }, { status: 500 })
   }
 }

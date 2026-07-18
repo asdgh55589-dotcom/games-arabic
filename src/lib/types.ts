@@ -162,6 +162,7 @@ export interface ModCommentType {
   isEdited: boolean
   createdAt: string
   updatedAt: string
+  user?: { id: string; username: string; avatarUrl: string | null } | null
   replies?: ModCommentType[]
 }
 

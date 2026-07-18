@@ -2,15 +2,15 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle, Check } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useDocumentTitle } from '@/hooks/use-document-title'
 import { useToast } from '@/hooks/use-toast'
+import { createClient } from '@/lib/supabase/client'
 
-/** 30 صورة لعبة كخلفية للصفحة */
 const GAME_IMAGES = [
   'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&h=400&fit=crop',
   'https://images.unsplash.com/photo-1493238792000-8113da705763?w=400&h=400&fit=crop',
@@ -66,6 +66,7 @@ function TelegramIcon({ className }: { className?: string }) {
 export function LoginPage() {
   useDocumentTitle('تسجيل الدخول')
   const { toast } = useToast()
+  const supabase = createClient()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -85,68 +86,59 @@ export function LoginPage() {
     return undefined
   }
 
-  const onEmailBlur = () => {
-    setErrors((prev) => ({ ...prev, email: validateEmail(email) }))
-  }
+  const onEmailBlur = () => setErrors((prev) => ({ ...prev, email: validateEmail(email) }))
+  const onPasswordBlur = () => setErrors((prev) => ({ ...prev, password: validatePassword(password) }))
 
-  const onPasswordBlur = () => {
-    setErrors((prev) => ({ ...prev, password: validatePassword(password) }))
-  }
-
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const emailErr = validateEmail(email)
     const passErr = validatePassword(password)
     setErrors({ email: emailErr, password: passErr })
-
     if (emailErr || passErr) return
 
     setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
-      toast({
-        title: 'تنبيه',
-        description: 'نظام المصادقة هيتفعل قريباً — ده تصميم تجريبي.',
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
       })
-    }, 1000)
+      if (error) throw error
+
+      toast({ title: 'تم تسجيل الدخول', description: 'مرحباً بعودتك!' })
+      window.location.href = '/'
+    } catch (err) {
+      let msg = 'بيانات الدخول غير صحيحة'
+      if (err instanceof Error) {
+        if (err.message.includes('Invalid login')) msg = 'البريد الإلكتروني أو كلمة المرور غير صحيحة'
+        else msg = err.message
+      }
+      toast({ title: 'خطأ', description: msg, variant: 'destructive' })
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <div className="relative min-h-screen overflow-hidden" dir="rtl">
-      {/* ===== الخلفية: 30 صورة لعبة جنباً إلى جنب ===== */}
       <div className="absolute inset-0 grid grid-cols-5 grid-rows-6 gap-0.5 sm:gap-1">
         {GAME_IMAGES.map((src, i) => (
           <div key={i} className="relative overflow-hidden">
-            <img
-              src={src}
-              alt=""
-              loading="lazy"
-              className="h-full w-full object-cover opacity-30 transition-all duration-700 hover:opacity-60 hover:scale-105"
-            />
+            <img src={src} alt="" loading="lazy" className="h-full w-full object-cover opacity-30 transition-all duration-700 hover:opacity-60 hover:scale-105" />
           </div>
         ))}
       </div>
-
-      {/* ===== Overlay داكن مع blur ===== */}
       <div className="absolute inset-0 bg-background/80 backdrop-blur-md" />
       <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/40 to-background/80" />
 
-      {/* ===== زرار العودة ===== */}
       <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
         <Button asChild variant="ghost" size="sm" className="bg-background/40 backdrop-blur-sm">
-          <Link href="/">
-            <ArrowLeft className="ml-1.5 h-4 w-4" />
-            العودة للرئيسية
-          </Link>
+          <Link href="/"><ArrowLeft className="ml-1.5 h-4 w-4" />العودة للرئيسية</Link>
         </Button>
       </div>
 
-      {/* ===== بوابة تسجيل الدخول في المنتصف ===== */}
       <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8">
         <div className="w-full max-w-[440px]">
-          {/* البطاقة الرئيسية — glassmorphism */}
           <div className="rounded-2xl border border-white/10 bg-card/80 p-8 shadow-2xl backdrop-blur-xl">
-            {/* الشعار */}
             <div className="mb-8 text-center">
               <h1 className="text-3xl font-extrabold tracking-tight">
                 <span className="text-primary">GAMES</span>
@@ -157,23 +149,16 @@ export function LoginPage() {
               </p>
             </div>
 
-            {/* الفورم */}
             <form onSubmit={onSubmit} className="space-y-5">
-              {/* الإيميل */}
               <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-xs font-medium">
-                  البريد الإلكتروني
-                </Label>
+                <Label htmlFor="email" className="text-xs font-medium">البريد الإلكتروني</Label>
                 <div className="relative">
                   <Mail className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="email"
                     type="email"
                     value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value)
-                      if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }))
-                    }}
+                    onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors((prev) => ({ ...prev, email: undefined })) }}
                     onBlur={onEmailBlur}
                     placeholder="you@example.com"
                     className={`h-11 pr-10 ${errors.email ? 'border-destructive focus-visible:ring-destructive' : ''}`}
@@ -182,27 +167,20 @@ export function LoginPage() {
                 </div>
                 {errors.email && (
                   <p className="flex items-center gap-1 text-xs text-destructive">
-                    <AlertCircle className="h-3 w-3" />
-                    {errors.email}
+                    <AlertCircle className="h-3 w-3" />{errors.email}
                   </p>
                 )}
               </div>
 
-              {/* كلمة المرور */}
               <div className="space-y-1.5">
-                <Label htmlFor="password" className="text-xs font-medium">
-                  كلمة المرور
-                </Label>
+                <Label htmlFor="password" className="text-xs font-medium">كلمة المرور</Label>
                 <div className="relative">
                   <Lock className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value)
-                      if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }))
-                    }}
+                    onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors((prev) => ({ ...prev, password: undefined })) }}
                     onBlur={onPasswordBlur}
                     placeholder="••••••••"
                     className={`h-11 px-10 ${errors.password ? 'border-destructive focus-visible:ring-destructive' : ''}`}
@@ -219,36 +197,26 @@ export function LoginPage() {
                 </div>
                 {errors.password && (
                   <p className="flex items-center gap-1 text-xs text-destructive">
-                    <AlertCircle className="h-3 w-3" />
-                    {errors.password}
+                    <AlertCircle className="h-3 w-3" />{errors.password}
                   </p>
                 )}
               </div>
 
-              {/* تذكرني + نسيت كلمة المرور */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="remember"
-                    checked={rememberMe}
-                    onCheckedChange={(v) => setRememberMe(v === true)}
-                  />
-                  <Label htmlFor="remember" className="cursor-pointer text-xs text-muted-foreground">
-                    تذكرني
-                  </Label>
+                  <Checkbox id="remember" checked={rememberMe} onCheckedChange={(v) => setRememberMe(v === true)} />
+                  <Label htmlFor="remember" className="cursor-pointer text-xs text-muted-foreground">تذكرني</Label>
                 </div>
                 <Link href="/?view=login" className="text-xs text-primary transition-colors hover:text-primary/80">
                   نسيت كلمة المرور؟
                 </Link>
               </div>
 
-              {/* زرار تسجيل الدخول */}
               <Button type="submit" className="h-11 w-full text-sm font-bold" disabled={loading}>
-                {loading ? 'جارٍ تسجيل الدخول…' : 'تسجيل الدخول'}
+                {loading ? <><Loader2 className="ml-2 h-4 w-4 animate-spin" />جارٍ تسجيل الدخول…</> : 'تسجيل الدخول'}
               </Button>
             </form>
 
-            {/* فاصل */}
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-border/50" />
@@ -258,30 +226,18 @@ export function LoginPage() {
               </div>
             </div>
 
-            {/* أزرار اجتماعية */}
             <div className="grid grid-cols-2 gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-11 bg-background/50 backdrop-blur-sm transition-colors hover:bg-background/80"
-                onClick={() => toast({ title: 'Google', description: 'سيتم تفعيل Google قريباً.' })}
-              >
+              <Button type="button" variant="outline" className="h-11 bg-background/50 backdrop-blur-sm transition-colors hover:bg-background/80" onClick={() => toast({ title: 'Google', description: 'سيتم تفعيل Google قريباً.' })}>
                 <GoogleIcon className="ml-2" />
                 <span className="text-sm font-medium">Google</span>
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-11 bg-background/50 text-[#0088cc] backdrop-blur-sm transition-colors hover:bg-[#0088cc]/10"
-                onClick={() => toast({ title: 'Telegram', description: 'سيتم تفعيل Telegram قريباً.' })}
-              >
+              <Button type="button" variant="outline" className="h-11 bg-background/50 text-[#0088cc] backdrop-blur-sm transition-colors hover:bg-[#0088cc]/10" onClick={() => toast({ title: 'Telegram', description: 'سيتم تفعيل Telegram قريباً.' })}>
                 <TelegramIcon className="ml-2" />
                 <span className="text-sm font-medium">Telegram</span>
               </Button>
             </div>
           </div>
 
-          {/* بطاقة إنشاء حساب — تح الـ form */}
           <div className="mt-4 rounded-2xl border border-white/10 bg-card/60 p-5 text-center backdrop-blur-xl">
             <p className="text-sm text-muted-foreground">
               ليس لديك حساب؟{' '}

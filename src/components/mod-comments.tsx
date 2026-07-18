@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import {
   ThumbsUp,
   Reply,
@@ -36,6 +37,14 @@ interface ModCommentsProps {
 
 type SortMode = 'newest' | 'popular' | 'oldest'
 
+interface CurrentUser {
+  id: string
+  username: string
+  email: string
+  role: string
+  avatarUrl?: string | null
+}
+
 const PAGE_SIZE = 20
 const MAX_DEPTH = 7
 
@@ -51,6 +60,17 @@ export function ModComments({ modSlug, modOwnerName }: ModCommentsProps) {
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [replyText, setReplyText] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+
+  // التحقق من تسجيل الدخول
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((data) => setCurrentUser(data?.user || null))
+      .catch(() => setCurrentUser(null))
+      .finally(() => setAuthLoading(false))
+  }, [])
 
   const fetchComments = useCallback(async () => {
     try {
@@ -87,15 +107,23 @@ export function ModComments({ modSlug, modOwnerName }: ModCommentsProps) {
 
   const onSubmitComment = async () => {
     if (!newComment.trim() || submitting) return
+    if (!currentUser) {
+      toast({ title: 'سجّل الدخول', description: 'يجب تسجيل الدخول للتعليق', variant: 'destructive' })
+      return
+    }
     setSubmitting(true)
     try {
       const res = await fetch(`/api/mods/${modSlug}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: newComment.trim(), guestName: 'زائر' }),
+        body: JSON.stringify({ text: newComment.trim() }),
       })
       if (!res.ok) {
         const data = await res.json()
+        if (data.code === 'AUTH_REQUIRED') {
+          toast({ title: 'سجّل الدخول', description: 'يجب تسجيل الدخول للتعليق', variant: 'destructive' })
+          return
+        }
         throw new Error(data?.error || 'فشل النشر')
       }
       setNewComment('')
@@ -114,15 +142,23 @@ export function ModComments({ modSlug, modOwnerName }: ModCommentsProps) {
 
   const onSubmitReply = async (parentId: string) => {
     if (!replyText.trim() || submitting) return
+    if (!currentUser) {
+      toast({ title: 'سجّل الدخول', description: 'يجب تسجيل الدخول للرد', variant: 'destructive' })
+      return
+    }
     setSubmitting(true)
     try {
       const res = await fetch(`/api/mods/${modSlug}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: replyText.trim(), parentId, guestName: 'زائر' }),
+        body: JSON.stringify({ text: replyText.trim(), parentId }),
       })
       if (!res.ok) {
         const data = await res.json()
+        if (data.code === 'AUTH_REQUIRED') {
+          toast({ title: 'سجّل الدخول', description: 'يجب تسجيل الدخول للرد', variant: 'destructive' })
+          return
+        }
         throw new Error(data?.error || 'فشل النشر')
       }
       setReplyText('')
@@ -186,26 +222,41 @@ export function ModComments({ modSlug, modOwnerName }: ModCommentsProps) {
       {/* صندوق كتابة تعليق جديد */}
       <div className="mb-6 flex gap-3">
         <Avatar className="h-10 w-10 shrink-0">
-          <AvatarFallback>ز</AvatarFallback>
+          <AvatarFallback>{currentUser ? currentUser.username[0] : 'ز'}</AvatarFallback>
         </Avatar>
         <div className="flex-1">
-          <textarea
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            placeholder="اكتب تعليقك هنا..."
-            rows={3}
-            className="w-full resize-none rounded-lg border border-border bg-card p-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-          <div className="mt-2 flex justify-end">
-            <Button
-              onClick={onSubmitComment}
-              disabled={!newComment.trim() || submitting}
-              size="sm"
-            >
-              {submitting ? <Loader2 className="ml-1.5 h-3.5 w-3.5 animate-spin" /> : <Send className="ml-1.5 h-3.5 w-3.5" />}
-              نشر التعليق
-            </Button>
-          </div>
+          {authLoading ? (
+            <div className="flex items-center justify-center rounded-lg border border-border bg-card p-6">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            </div>
+          ) : currentUser ? (
+            <>
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="اكتب تعليقك هنا..."
+                rows={3}
+                className="w-full resize-none rounded-lg border border-border bg-card p-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <div className="mt-2 flex justify-end">
+                <Button
+                  onClick={onSubmitComment}
+                  disabled={!newComment.trim() || submitting}
+                  size="sm"
+                >
+                  {submitting ? <Loader2 className="ml-1.5 h-3.5 w-3.5 animate-spin" /> : <Send className="ml-1.5 h-3.5 w-3.5" />}
+                  نشر التعليق
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-center rounded-lg border border-border bg-card p-6 text-center">
+              <p className="text-sm text-muted-foreground">
+                <Link href="/?view=login" className="font-bold text-primary hover:text-primary/80">سجّل الدخول</Link>
+                {' '}للتعليق على هذا التعريب
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -306,20 +357,22 @@ function CommentItem({
   const isNested = depth > 0
   const avatarSize = isNested ? 'h-8 w-8' : 'h-10 w-10'
   const canReply = depth < MAX_DEPTH
-  const nestMargin = Math.min(depth * 16, 96) // 16px per level, max 96px
+  const nestMargin = Math.min(depth * 16, 96)
+  const displayName = comment.user?.username || comment.guestName || 'مستخدم'
+  const displayAvatar = comment.user?.avatarUrl || comment.guestAvatar
 
   return (
     <div style={isNested ? { marginRight: nestMargin, borderRight: '2px solid', paddingRight: 16, borderColor: 'hsl(var(--border) / 0.5)' } : undefined}>
       <div className={`flex gap-3 ${comment.isPinned ? 'rounded-lg border border-primary/30 bg-primary/5 p-3' : ''}`}>
         <Avatar className={`${avatarSize} shrink-0`}>
-          <AvatarImage src={comment.guestAvatar || undefined} alt={comment.guestName} />
-          <AvatarFallback>{comment.guestName[0]}</AvatarFallback>
+          <AvatarImage src={displayAvatar || undefined} alt={displayName} />
+          <AvatarFallback>{displayName[0]}</AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
           {/* رأس التعليق */}
           <div className="mb-1 flex flex-wrap items-center gap-2">
             <span className={`font-semibold text-foreground ${isNested ? 'text-sm' : ''}`}>
-              {comment.guestName}
+              {displayName}
             </span>
             {comment.isPinned && (
               <Badge variant="secondary" className="gap-1 bg-primary/15 text-primary">
@@ -327,7 +380,7 @@ function CommentItem({
                 مثبّت
               </Badge>
             )}
-            {modOwnerName && comment.guestName === modOwnerName && (
+            {modOwnerName && displayName === modOwnerName && (
               <Badge variant="secondary" className="gap-1 bg-amber-500/15 text-amber-500">
                 <Heart className="h-3 w-3" />
                 المؤلف
@@ -360,7 +413,7 @@ function CommentItem({
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={() => onReport(comment.guestName)}
+                    onClick={() => onReport(displayName)}
                     className="text-red-500 focus:text-red-500"
                   >
                     <Flag className="ml-2 h-4 w-4" />
@@ -404,13 +457,13 @@ function CommentItem({
           {replyingTo === comment.id && (
             <div className="mt-3 flex gap-2">
               <Avatar className="h-8 w-8 shrink-0">
-                <AvatarFallback>ز</AvatarFallback>
+                <AvatarFallback>{currentUser?.username?.[0] || 'ز'}</AvatarFallback>
               </Avatar>
               <div className="flex-1">
                 <textarea
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
-                  placeholder={`الرد على ${comment.guestName}...`}
+                  placeholder={`الرد على ${displayName}...`}
                   rows={2}
                   autoFocus
                   className="w-full resize-none rounded-lg border border-border bg-card p-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"

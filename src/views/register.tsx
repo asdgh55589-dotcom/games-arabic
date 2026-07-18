@@ -2,13 +2,14 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle, User, Check } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle, User, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useDocumentTitle } from '@/hooks/use-document-title'
 import { useToast } from '@/hooks/use-toast'
+import { createClient } from '@/lib/supabase/client'
 
 const GAME_IMAGES = [
   'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&h=400&fit=crop',
@@ -65,6 +66,7 @@ function TelegramIcon({ className }: { className?: string }) {
 export function RegisterPage() {
   useDocumentTitle('إنشاء حساب')
   const { toast } = useToast()
+  const supabase = createClient()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -93,22 +95,61 @@ export function RegisterPage() {
     return e
   }
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const e2 = validate()
     setErrors(e2)
     if (Object.keys(e2).length > 0) return
 
     setLoading(true)
-    setTimeout(() => {
+    try {
+      // 1. إنشاء حساب في Supabase Auth
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+        options: {
+          data: { username: name.trim() },
+        },
+      })
+      if (error) throw error
+
+      // 2. مزامنة بيانات المستخدم مع Neon DB
+      if (data.user) {
+        await fetch('/api/auth/sync-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            supabaseUserId: data.user.id,
+            username: name.trim(),
+            email: email.trim().toLowerCase(),
+          }),
+        })
+      }
+
+      toast({
+        title: 'تم إنشاء الحساب',
+        description: data.user?.identities?.length === 0
+          ? 'هذا البريد الإلكتروني مسجّل بالفعل.'
+          : 'تم إنشاء حسابك بنجاح! تحقق من بريدك الإلكتروني للتأكيد.',
+      })
+
+      // redirect to home
+      window.location.href = '/'
+    } catch (err) {
+      let msg = 'حدث خطأ أثناء إنشاء الحساب'
+      if (err instanceof Error) {
+        if (err.message.includes('already registered')) msg = 'هذا البريد الإلكتروني مسجّل بالفعل'
+        else if (err.message.includes('valid email')) msg = 'صيغة البريد الإلكتروني غير صحيحة'
+        else msg = err.message
+      }
+      toast({ title: 'خطأ', description: msg, variant: 'destructive' })
+    } finally {
       setLoading(false)
-      toast({ title: 'إنشاء حساب', description: 'نظام المصادقة هيتفعل قريباً.' })
-    }, 1000)
+    }
   }
 
   return (
     <div className="relative min-h-screen overflow-hidden" dir="rtl">
-      {/* خلفية 30 صورة */}
       <div className="absolute inset-0 grid grid-cols-5 grid-rows-6 gap-0.5 sm:gap-1">
         {GAME_IMAGES.map((src, i) => (
           <div key={i} className="relative overflow-hidden">
@@ -119,14 +160,12 @@ export function RegisterPage() {
       <div className="absolute inset-0 bg-background/80 backdrop-blur-md" />
       <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/40 to-background/80" />
 
-      {/* زرار العودة */}
       <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
         <Button asChild variant="ghost" size="sm" className="bg-background/40 backdrop-blur-sm">
           <Link href="/"><ArrowLeft className="ml-1.5 h-4 w-4" />العودة للرئيسية</Link>
         </Button>
       </div>
 
-      {/* البوابة */}
       <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8">
         <div className="w-full max-w-[440px]">
           <div className="rounded-2xl border border-white/10 bg-card/80 p-8 shadow-2xl backdrop-blur-xl">
@@ -138,7 +177,6 @@ export function RegisterPage() {
             </div>
 
             <form onSubmit={onSubmit} className="space-y-4">
-              {/* الاسم */}
               <div className="space-y-1.5">
                 <Label htmlFor="name" className="text-xs font-medium">اسم المستخدم</Label>
                 <div className="relative">
@@ -148,7 +186,6 @@ export function RegisterPage() {
                 {errors.name && <p className="flex items-center gap-1 text-xs text-destructive"><AlertCircle className="h-3 w-3" />{errors.name}</p>}
               </div>
 
-              {/* الإيميل */}
               <div className="space-y-1.5">
                 <Label htmlFor="email" className="text-xs font-medium">البريد الإلكتروني</Label>
                 <div className="relative">
@@ -158,7 +195,6 @@ export function RegisterPage() {
                 {errors.email && <p className="flex items-center gap-1 text-xs text-destructive"><AlertCircle className="h-3 w-3" />{errors.email}</p>}
               </div>
 
-              {/* كلمة المرور */}
               <div className="space-y-1.5">
                 <Label htmlFor="password" className="text-xs font-medium">كلمة المرور</Label>
                 <div className="relative">
@@ -171,7 +207,6 @@ export function RegisterPage() {
                 {errors.password && <p className="flex items-center gap-1 text-xs text-destructive"><AlertCircle className="h-3 w-3" />{errors.password}</p>}
               </div>
 
-              {/* تأكيد */}
               <div className="space-y-1.5">
                 <Label htmlFor="confirmPassword" className="text-xs font-medium">تأكيد كلمة المرور</Label>
                 <div className="relative">
@@ -181,7 +216,6 @@ export function RegisterPage() {
                 {errors.confirm && <p className="flex items-center gap-1 text-xs text-destructive"><AlertCircle className="h-3 w-3" />{errors.confirm}</p>}
               </div>
 
-              {/* الموافقة على الشروط */}
               <div className="space-y-1">
                 <div className="flex items-start gap-2">
                   <Checkbox id="agree" checked={agree} onCheckedChange={(v) => { setAgree(v === true); if (errors.agree) setErrors(p => ({ ...p, agree: undefined })) }} className="mt-0.5" />
@@ -193,11 +227,10 @@ export function RegisterPage() {
               </div>
 
               <Button type="submit" className="h-11 w-full text-sm font-bold" disabled={loading}>
-                {loading ? 'جارٍ الإنشاء…' : 'إنشاء الحساب'}
+                {loading ? <><Loader2 className="ml-2 h-4 w-4 animate-spin" />جارٍ الإنشاء…</> : 'إنشاء الحساب'}
               </Button>
             </form>
 
-            {/* فاصل */}
             <div className="relative my-5">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border/50" /></div>
               <div className="relative flex justify-center"><span className="bg-transparent px-4 text-xs text-muted-foreground">أو سجل بـ</span></div>
@@ -213,7 +246,6 @@ export function RegisterPage() {
             </div>
           </div>
 
-          {/* لينك تسجيل الدخول */}
           <div className="mt-4 rounded-2xl border border-white/10 bg-card/60 p-5 text-center backdrop-blur-xl">
             <p className="text-sm text-muted-foreground">
               لديك حساب؟{' '}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { createClient } from '@/lib/supabase/server'
 
 interface RouteParams {
   params: Promise<{ slug: string }>
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: 'Mod not found' }, { status: 404 })
   }
 
-  // جلب كل التعليقات (مع الردود)
+  // جلب كل التعليقات (مع الردود وبيانات المستخدم)
   const comments = await db.modComment.findMany({
     where: {
       modId: mod.id,
@@ -28,6 +29,9 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     include: {
       replies: {
         orderBy: { createdAt: 'asc' },
+      },
+      user: {
+        select: { id: true, username: true, avatarUrl: true },
       },
     },
     orderBy: sort === 'oldest'
@@ -52,11 +56,22 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   return NextResponse.json({ comments: sorted, total: totalCount })
 }
 
-// POST /api/mods/[slug]/comments — إضافة تعليق جديد
+// POST /api/mods/[slug]/comments — إضافة تعليق جديد (يتطلب تسجيل دخول)
 //
-// Body: { text: string, guestName?: string, guestAvatar?: string, parentId?: string }
+// Body: { text: string, parentId?: string }
 export async function POST(req: NextRequest, { params }: RouteParams) {
   try {
+    // التحقق من Supabase session
+    const supabase = await createClient()
+    const { data: { user: supabaseUser } } = await supabase.auth.getUser()
+
+    if (!supabaseUser) {
+      return NextResponse.json(
+        { error: 'سجّل الدخول للتعليق', code: 'AUTH_REQUIRED' },
+        { status: 401 }
+      )
+    }
+
     const { slug } = await params
     const body = await req.json().catch(() => ({}))
 
@@ -70,6 +85,21 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     const mod = await db.mod.findUnique({ where: { slug }, select: { id: true } })
     if (!mod) {
       return NextResponse.json({ error: 'Mod not found' }, { status: 404 })
+    }
+
+    // البحث عن المستخدم في Neon DB
+    const user = await db.user.findFirst({
+      where: {
+        OR: [
+          { supabaseId: supabaseUser.id },
+          { email: supabaseUser.email || '' },
+        ],
+      },
+      select: { id: true },
+    })
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
     // لو فيه parentId → تأكد إن الـ parent موجود وينتمي لنفس الـ mod
@@ -87,8 +117,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       data: {
         modId: mod.id,
         parentId: body.parentId || null,
-        guestName: body.guestName || 'زائر',
-        guestAvatar: body.guestAvatar || null,
+        userId: user.id,
         text: body.text.trim(),
       },
     })
