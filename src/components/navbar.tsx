@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Search, Menu, ChevronDown, Upload, LogIn, X, TrendingUp, Flame, Package, ShieldCheck } from 'lucide-react'
+import { Search, Menu, ChevronDown, Upload, LogIn, X, TrendingUp, Flame, Package, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -176,16 +176,19 @@ export function Navbar({ games }: NavbarProps) {
                 </MobileLink>
               ))}
 
+              <MobileLink href="/?view=series" onClick={() => setMobileOpen(false)}>
+                السلاسل
+              </MobileLink>
+
+              <MobileLink href="/?view=teams" onClick={() => setMobileOpen(false)}>
+                <Users className="h-4 w-4" />
+                الفرق التعريب
+              </MobileLink>
+
               <div className="mt-4 space-y-2 border-t pt-4">
-                <div className="flex items-center justify-between px-3">
-                  <span className="text-xs font-semibold text-muted-foreground">السمة</span>
+                <div className="flex items-center justify-end px-3">
                   <ThemeSwitcher />
                 </div>
-                <Button asChild variant="outline" className="w-full">
-                  <Link href="/admin/login" onClick={() => setMobileOpen(false)}>
-                    <ShieldCheck className="mr-2 h-4 w-4" /> لوحة التحكم
-                  </Link>
-                </Button>
                 <Button asChild className="w-full">
                   <Link href="/?view=login" onClick={() => setMobileOpen(false)}>
                     <LogIn className="mr-2 h-4 w-4" /> تسجيل الدخول
@@ -215,6 +218,19 @@ export function Navbar({ games }: NavbarProps) {
               {p.label}
             </Link>
           ))}
+          <Link
+            href="/?view=series"
+            className="whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-accent hover:text-primary"
+          >
+            السلاسل
+          </Link>
+          <Link
+            href="/?view=teams"
+            className="flex items-center gap-1.5 whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-accent hover:text-primary"
+          >
+            <Users className="h-3.5 w-3.5" />
+            الفرق التعريب
+          </Link>
         </nav>
 
         {/* Smart Search — متوسّع وذكي */}
@@ -316,16 +332,6 @@ export function Navbar({ games }: NavbarProps) {
         {/* Right actions — موسّع */}
         <div className="hidden items-center gap-4 sm:flex">
           <ThemeSwitcher />
-
-          {/* أيقونة لوحة التحكم */}
-          <Link
-            href="/admin/login"
-            className="grid h-9 w-9 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
-            title="لوحة التحكم"
-            aria-label="لوحة التحكم"
-          >
-            <ShieldCheck className="h-5 w-5" />
-          </Link>
 
           <Button asChild variant="ghost" size="sm" className="text-sm font-medium text-foreground hover:text-primary">
             <Link href="/?view=login">

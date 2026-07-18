@@ -122,7 +122,10 @@ export interface ModVideo {
   url: string
   thumbnail: string | null
   duration: string | null
+  description: string | null
   views: number
+  likes: number
+  commentsCount: number
   channel: string | null
   order: number
 }

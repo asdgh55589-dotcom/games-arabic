@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
   const latest = searchParams.get('latest')
   const platform = searchParams.get('platform')
   const translationType = searchParams.get('translationType')
+  const translationTeam = searchParams.get('translationTeam')?.trim() || null
 
   const where: Record<string, unknown> = {}
   if (search) {
@@ -60,6 +61,9 @@ export async function GET(req: NextRequest) {
   // Whitelist translationType — only "official" and "unofficial" are valid.
   if (translationType === 'official' || translationType === 'unofficial') {
     where.translationType = translationType
+  }
+  if (translationTeam) {
+    where.translationTeam = translationTeam
   }
 
   const [total, mods] = await Promise.all([

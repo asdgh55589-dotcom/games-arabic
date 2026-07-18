@@ -162,17 +162,20 @@ model ModVideoGroup {
 
 // ===== الفيديوهات =====
 model ModVideo {
-  id         String        @id @default(cuid())
-  groupId    String
-  group      ModVideoGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  title      String
-  url        String
-  thumbnail  String?
-  duration   String?
-  views      Int           @default(0)
-  channel    String?
-  order      Int           @default(0)
-  createdAt  DateTime      @default(now())
+  id            String        @id @default(cuid())
+  groupId       String
+  group         ModVideoGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  title         String
+  url           String
+  thumbnail     String?
+  duration      String?
+  description   String?
+  views         Int           @default(0)
+  likes         Int           @default(0)
+  commentsCount Int           @default(0)
+  channel       String?
+  order         Int           @default(0)
+  createdAt     DateTime      @default(now())
 }
 
 // ===== أعضاء فريق التعريب =====

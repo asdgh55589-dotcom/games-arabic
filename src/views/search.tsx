@@ -11,7 +11,7 @@ import type { SearchResponse } from '@/lib/types'
 
 export function SearchPage() {
   const searchParams = useSearchParams()
-  const q = searchParams.get('q') || ''
+  const q = searchParams.get('q') || searchParams.get('translationTeam') || ''
 
   useDocumentTitle(q ? `بحث: ${q}` : 'بحث')
 

@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   ThumbsUp,
-  ThumbsDown,
   Reply,
   Flag,
   Edit2,
@@ -13,6 +12,8 @@ import {
   Pin,
   Heart,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -35,26 +36,22 @@ interface ModCommentsProps {
 
 type SortMode = 'newest' | 'popular' | 'oldest'
 
-/**
- * ModComments — نظام تعليقات قوي وجميل.
- * بقرأ التعليقات من API: GET /api/mods/[slug]/comments
- * بيبعت تعليقات جديدة: POST /api/mods/[slug]/comments
- * like/dislike عبر: POST /api/comments/[id]/like | /dislike
- */
+const PAGE_SIZE = 20
+const MAX_DEPTH = 7
+
 export function ModComments({ modSlug, modOwnerName }: ModCommentsProps) {
   const { toast } = useToast()
   const [comments, setComments] = useState<ModCommentType[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [sortMode, setSortMode] = useState<SortMode>('newest')
+  const [page, setPage] = useState(1)
   const [newComment, setNewComment] = useState('')
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
-  const [dislikedIds, setDislikedIds] = useState<Set<string>>(new Set())
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [replyText, setReplyText] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  // جلب التعليقات
   const fetchComments = useCallback(async () => {
     try {
       const res = await fetch(`/api/mods/${modSlug}/comments?sort=${sortMode}`)
@@ -63,7 +60,7 @@ export function ModComments({ modSlug, modOwnerName }: ModCommentsProps) {
       setComments(data.comments || [])
       setTotalCount(data.total || 0)
     } catch {
-      // silent fail
+      // silent
     } finally {
       setLoading(false)
     }
@@ -71,42 +68,21 @@ export function ModComments({ modSlug, modOwnerName }: ModCommentsProps) {
 
   useEffect(() => {
     setLoading(true)
+    setPage(1)
     fetchComments()
   }, [fetchComments])
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE)
+  const paginatedComments = comments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const toggleLike = (id: string) => {
     setLikedIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
-      else {
-        next.add(id)
-        setDislikedIds((d) => {
-          const dn = new Set(d)
-          dn.delete(id)
-          return dn
-        })
-      }
+      else next.add(id)
       return next
     })
-    // POST للـ API (fire-and-forget)
     fetch(`/api/comments/${id}/like`, { method: 'POST' }).catch(() => {})
-  }
-
-  const toggleDislike = (id: string) => {
-    setDislikedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else {
-        next.add(id)
-        setLikedIds((l) => {
-          const ln = new Set(l)
-          ln.delete(id)
-          return ln
-        })
-      }
-      return next
-    })
-    fetch(`/api/comments/${id}/dislike`, { method: 'POST' }).catch(() => {})
   }
 
   const onSubmitComment = async () => {
@@ -116,10 +92,7 @@ export function ModComments({ modSlug, modOwnerName }: ModCommentsProps) {
       const res = await fetch(`/api/mods/${modSlug}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: newComment.trim(),
-          guestName: 'زائر',
-        }),
+        body: JSON.stringify({ text: newComment.trim(), guestName: 'زائر' }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -146,11 +119,7 @@ export function ModComments({ modSlug, modOwnerName }: ModCommentsProps) {
       const res = await fetch(`/api/mods/${modSlug}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: replyText.trim(),
-          parentId,
-          guestName: 'زائر',
-        }),
+        body: JSON.stringify({ text: replyText.trim(), parentId, guestName: 'زائر' }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -252,87 +221,106 @@ export function ModComments({ modSlug, modOwnerName }: ModCommentsProps) {
           <p className="mt-1 text-sm text-muted-foreground">كن أول من يعلّق على هذا التعريب!</p>
         </div>
       ) : (
-        <div className="space-y-6">
-          {comments.map((comment) => (
-            <CommentItem
-              key={comment.id}
-              comment={comment}
-              modOwnerName={modOwnerName}
-              liked={likedIds.has(comment.id)}
-              disliked={dislikedIds.has(comment.id)}
-              onLike={() => toggleLike(comment.id)}
-              onDislike={() => toggleDislike(comment.id)}
-              onReply={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
-              onReport={() => onReport(comment.guestName)}
-              replyingTo={replyingTo}
-              replyText={replyText}
-              setReplyText={setReplyText}
-              onSubmitReply={() => onSubmitReply(comment.id)}
-              onCancelReply={() => {
-                setReplyingTo(null)
-                setReplyText('')
-              }}
-              likedIds={likedIds}
-              dislikedIds={dislikedIds}
-              toggleLike={toggleLike}
-              toggleDislike={toggleDislike}
-            />
-          ))}
-        </div>
+        <>
+          <div className="space-y-6">
+            {paginatedComments.map((comment) => (
+              <CommentItem
+                key={comment.id}
+                comment={comment}
+                depth={0}
+                modOwnerName={modOwnerName}
+                likedIds={likedIds}
+                replyingTo={replyingTo}
+                replyText={replyText}
+                setReplyText={setReplyText}
+                onLike={toggleLike}
+                onReply={(id) => setReplyingTo(replyingTo === id ? null : id)}
+                onSubmitReply={onSubmitReply}
+                onCancelReply={() => { setReplyingTo(null); setReplyText('') }}
+                onReport={onReport}
+              />
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-6 flex items-center justify-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                <ChevronRight className="h-4 w-4" />
+                السابق
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                {page} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                التالي
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   )
 }
 
-/** عنصر تعليق واحد — مع ردود متداخلة */
+/** عنصر تعليق واحد — مع ردود متداخلة (עד 7 مستويات) */
 function CommentItem({
   comment,
+  depth,
   modOwnerName,
-  liked,
-  disliked,
-  onLike,
-  onDislike,
-  onReply,
-  onReport,
+  likedIds,
   replyingTo,
   replyText,
   setReplyText,
+  onLike,
+  onReply,
   onSubmitReply,
   onCancelReply,
-  likedIds,
-  dislikedIds,
-  toggleLike,
-  toggleDislike,
+  onReport,
 }: {
   comment: ModCommentType
+  depth: number
   modOwnerName?: string
-  liked: boolean
-  disliked: boolean
-  onLike: () => void
-  onDislike: () => void
-  onReply: () => void
-  onReport: () => void
+  likedIds: Set<string>
   replyingTo: string | null
   replyText: string
   setReplyText: (s: string) => void
-  onSubmitReply: () => void
+  onLike: (id: string) => void
+  onReply: (id: string) => void
+  onSubmitReply: (parentId: string) => void
   onCancelReply: () => void
-  likedIds: Set<string>
-  dislikedIds: Set<string>
-  toggleLike: (id: string) => void
-  toggleDislike: (id: string) => void
+  onReport: (name: string) => void
 }) {
+  const liked = likedIds.has(comment.id)
+  const isNested = depth > 0
+  const avatarSize = isNested ? 'h-8 w-8' : 'h-10 w-10'
+  const canReply = depth < MAX_DEPTH
+  const nestMargin = Math.min(depth * 16, 96) // 16px per level, max 96px
+
   return (
-    <div className="space-y-4">
+    <div style={isNested ? { marginRight: nestMargin, borderRight: '2px solid', paddingRight: 16, borderColor: 'hsl(var(--border) / 0.5)' } : undefined}>
       <div className={`flex gap-3 ${comment.isPinned ? 'rounded-lg border border-primary/30 bg-primary/5 p-3' : ''}`}>
-        <Avatar className="h-10 w-10 shrink-0">
+        <Avatar className={`${avatarSize} shrink-0`}>
           <AvatarImage src={comment.guestAvatar || undefined} alt={comment.guestName} />
           <AvatarFallback>{comment.guestName[0]}</AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
           {/* رأس التعليق */}
           <div className="mb-1 flex flex-wrap items-center gap-2">
-            <span className="font-semibold text-foreground">{comment.guestName}</span>
+            <span className={`font-semibold text-foreground ${isNested ? 'text-sm' : ''}`}>
+              {comment.guestName}
+            </span>
             {comment.isPinned && (
               <Badge variant="secondary" className="gap-1 bg-primary/15 text-primary">
                 <Pin className="h-3 w-3" />
@@ -360,17 +348,19 @@ function CommentItem({
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-40">
-                  <DropdownMenuItem onClick={onReply}>
-                    <Reply className="ml-2 h-4 w-4" />
-                    رد
-                  </DropdownMenuItem>
+                  {canReply && (
+                    <DropdownMenuItem onClick={() => onReply(comment.id)}>
+                      <Reply className="ml-2 h-4 w-4" />
+                      رد
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem>
                     <Edit2 className="ml-2 h-4 w-4" />
                     تعديل
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={onReport}
+                    onClick={() => onReport(comment.guestName)}
                     className="text-red-500 focus:text-red-500"
                   >
                     <Flag className="ml-2 h-4 w-4" />
@@ -382,12 +372,14 @@ function CommentItem({
           </div>
 
           {/* نص التعليق */}
-          <p className="mb-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{comment.text}</p>
+          <p className={`whitespace-pre-wrap leading-relaxed text-foreground/90 ${isNested ? 'text-xs' : 'mb-2 text-sm'}`}>
+            {comment.text}
+          </p>
 
           {/* أزرار التفاعل */}
-          <div className="flex items-center gap-1">
+          <div className="mt-1 flex items-center gap-1">
             <button
-              onClick={onLike}
+              onClick={() => onLike(comment.id)}
               className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
                 liked ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
               }`}
@@ -396,24 +388,16 @@ function CommentItem({
               <ThumbsUp className={`h-3.5 w-3.5 ${liked ? 'fill-current' : ''}`} />
               {formatNumber(comment.likes + (liked ? 1 : 0))}
             </button>
-            <button
-              onClick={onDislike}
-              className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
-                disliked ? 'bg-red-500/15 text-red-500' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-              }`}
-              aria-pressed={disliked}
-            >
-              <ThumbsDown className={`h-3.5 w-3.5 ${disliked ? 'fill-current' : ''}`} />
-              {formatNumber(comment.dislikes + (disliked ? 1 : 0))}
-            </button>
             <span className="mx-1 h-4 w-px bg-border" />
-            <button
-              onClick={onReply}
-              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            >
-              <Reply className="h-3.5 w-3.5" />
-              رد
-            </button>
+            {canReply && (
+              <button
+                onClick={() => onReply(comment.id)}
+                className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <Reply className="h-3.5 w-3.5" />
+                رد
+              </button>
+            )}
           </div>
 
           {/* صندوق الرد */}
@@ -435,7 +419,7 @@ function CommentItem({
                   <Button variant="ghost" size="sm" onClick={onCancelReply}>
                     إلغاء
                   </Button>
-                  <Button size="sm" onClick={onSubmitReply} disabled={!replyText.trim()}>
+                  <Button size="sm" onClick={() => onSubmitReply(comment.id)} disabled={!replyText.trim()}>
                     <Send className="ml-1.5 h-3.5 w-3.5" />
                     نشر الرد
                   </Button>
@@ -446,57 +430,26 @@ function CommentItem({
         </div>
       </div>
 
-      {/* الردود المتداخلة */}
-      {comment.replies && comment.replies.length > 0 && (
-        <div className="mr-10 space-y-4 border-r-2 border-border/50 pr-4">
-          {comment.replies.map((reply) => {
-            const rLiked = likedIds.has(reply.id)
-            const rDisliked = dislikedIds.has(reply.id)
-            return (
-              <div key={reply.id} className="flex gap-3">
-                <Avatar className="h-8 w-8 shrink-0">
-                  <AvatarImage src={reply.guestAvatar || undefined} alt={reply.guestName} />
-                  <AvatarFallback>{reply.guestName[0]}</AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                  <div className="mb-1 flex items-center gap-2">
-                    <span className="text-sm font-semibold text-foreground">{reply.guestName}</span>
-                    {modOwnerName && reply.guestName === modOwnerName && (
-                      <Badge variant="secondary" className="gap-1 bg-amber-500/15 text-amber-500">
-                        <Heart className="h-3 w-3" />
-                        المؤلف
-                      </Badge>
-                    )}
-                    <span className="text-xs text-muted-foreground">{timeAgo(reply.createdAt)}</span>
-                    {reply.isEdited && (
-                      <span className="text-[11px] text-muted-foreground/70">(تم التعديل)</span>
-                    )}
-                  </div>
-                  <p className="mb-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{reply.text}</p>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => toggleLike(reply.id)}
-                      className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
-                        rLiked ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                      }`}
-                    >
-                      <ThumbsUp className={`h-3.5 w-3.5 ${rLiked ? 'fill-current' : ''}`} />
-                      {formatNumber(reply.likes + (rLiked ? 1 : 0))}
-                    </button>
-                    <button
-                      onClick={() => toggleDislike(reply.id)}
-                      className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
-                        rDisliked ? 'bg-red-500/15 text-red-500' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                      }`}
-                    >
-                      <ThumbsDown className={`h-3.5 w-3.5 ${rDisliked ? 'fill-current' : ''}`} />
-                      {formatNumber(reply.dislikes + (rDisliked ? 1 : 0))}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+      {/* الردود المتداخلة — recursive */}
+      {comment.replies && comment.replies.length > 0 && depth < MAX_DEPTH && (
+        <div className="mt-4 space-y-4">
+          {comment.replies.map((reply) => (
+            <CommentItem
+              key={reply.id}
+              comment={reply}
+              depth={depth + 1}
+              modOwnerName={modOwnerName}
+              likedIds={likedIds}
+              replyingTo={replyingTo}
+              replyText={replyText}
+              setReplyText={setReplyText}
+              onLike={onLike}
+              onReply={onReply}
+              onSubmitReply={onSubmitReply}
+              onCancelReply={onCancelReply}
+              onReport={onReport}
+            />
+          ))}
         </div>
       )}
     </div>

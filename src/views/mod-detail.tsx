@@ -278,6 +278,23 @@ export function ModDetailPage() {
                     </Link>
                   </>
                 )}
+                {mod.translationTeam && mod.translationTeam.trim() !== '' && (
+                  <>
+                    <span className="text-foreground/30">•</span>
+                    <Link
+                      href={`/?view=translation-team-detail&team=${encodeURIComponent(mod.translationTeam)}`}
+                      className="flex items-center gap-1.5 rounded-md border border-white/10 bg-background/40 px-2 py-1 backdrop-blur-sm transition-all hover:border-primary/50 hover:bg-primary/10"
+                    >
+                      <span className="text-primary">
+                        <Users className="h-3.5 w-3.5" />
+                      </span>
+                      <div className="flex flex-col leading-tight">
+                        <span className="text-xs font-bold text-foreground">{mod.translationTeam}</span>
+                        <span className="text-[10px] text-muted-foreground">فريق التعريب</span>
+                      </div>
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -310,13 +327,13 @@ export function ModDetailPage() {
                 <div className="flex flex-1 flex-col justify-between text-xs">
                   <div className="space-y-0.5">
                     <InfoRow icon={<Gamepad2 className="h-3.5 w-3.5" />} label="اسم اللعبة" value={mod.game.name} />
-                    {mod.arabicTitle && mod.arabicTitle.trim() !== '' && (
+                    {mod.arabicTitle && (
                       <>
                         <Divider />
                         <InfoRow icon={<Languages className="h-3.5 w-3.5" />} label="الاسم بالعربي" value={mod.arabicTitle} />
                       </>
                     )}
-                    {mod.series && mod.series.trim() !== '' && (
+                    {mod.series && (
                       <>
                         <Divider />
                         <Link href={`/?view=series-detail&series=${encodeURIComponent(mod.series)}`} className="flex items-center justify-between gap-2 px-1 py-2 transition-colors hover:bg-accent/50 rounded">
@@ -327,28 +344,34 @@ export function ModDetailPage() {
                     )}
                     <Divider />
                     <InfoRow icon={<Calendar className="h-3.5 w-3.5" />} label="تاريخ النشر" value={formatArabicDate(mod.releaseDate)} />
-                    {mod.translationType && mod.translationType.trim() !== '' && (
+                    {mod.translationType && (
                       <>
                         <Divider />
                         <InfoRow icon={<Shield className="h-3.5 w-3.5" />} label="نوع التعريب" value={mod.translationType} />
                       </>
                     )}
-                    {mod.version && mod.version.trim() !== '' && (
+                    {mod.version && (
                       <>
                         <Divider />
                         <InfoRow icon={<Tag className="h-3.5 w-3.5" />} label="إصدار التعريب" value={`v${mod.version}`} />
                       </>
                     )}
-                    {mod.compatibility && mod.compatibility.trim() !== '' && (
+                    {mod.compatibility && (
                       <>
                         <Divider />
                         <InfoRow icon={<CheckCircle className="h-3.5 w-3.5" />} label="التوافق" value={mod.compatibility} />
                       </>
                     )}
-                    {mod.translationTeam && mod.translationTeam.trim() !== '' && (
+                    {mod.translationTeam && (
                       <>
                         <Divider />
-                        <InfoRow icon={<Users className="h-3.5 w-3.5" />} label="فريق التعريب" value={mod.translationTeam} />
+                        <Link href={`/?view=translation-team-detail&team=${encodeURIComponent(mod.translationTeam)}`} className="flex items-center justify-between gap-2 px-1 py-2.5 transition-colors hover:bg-accent/50 rounded">
+                          <span className="flex items-center gap-2 font-medium text-foreground">
+                            <span className="text-sky-400"><Users className="h-3.5 w-3.5" /></span>
+                            فريق التعريب
+                          </span>
+                          <span className="font-bold text-primary">{mod.translationTeam}</span>
+                        </Link>
                       </>
                     )}
                     {mod.fileSize && mod.fileSize.trim() !== '' && (
@@ -358,16 +381,33 @@ export function ModDetailPage() {
                       </>
                     )}
                   </div>
-                </div>
 
-                {/* الأوسمة في أسفل بطاقة البيانات */}
-                <div className="mt-3 border-t border-border pt-3">
-                  <div className="flex flex-wrap gap-1.5">
-                    <Badge variant="secondary" className="gap-1 bg-primary/10 text-primary"><Award className="h-3 w-3" />مؤلف موثّق</Badge>
-                    <Badge variant="secondary" className="gap-1 bg-primary/10 text-primary"><Star className="h-3 w-3" />مترجم نشط</Badge>
-                    <Badge variant="secondary" className="gap-1 bg-primary/10 text-primary"><Crown className="h-3 w-3" />مساهم مميز</Badge>
+                  {/* زر التأييد — في أسفل البيانات */}
+                  <div className="mt-3">
+                    <Button
+                      onClick={onEndorse}
+                      variant={endorsed ? 'default' : 'outline'}
+                      className={`w-full gap-2 ${endorsed ? 'bg-primary text-primary-foreground' : ''}`}
+                    >
+                      <ThumbsUp className={`h-4 w-4 ${endorsed ? 'fill-current' : ''}`} />
+                      {endorsed ? 'تم التأييد' : 'أعجبني'}
+                      <span className="text-xs opacity-70">({formatNumber(shownEndorsements)})</span>
+                    </Button>
                   </div>
                 </div>
+
+                {/* الأوسمة في أسفل بطاقة البيانات — badges ديناميكية من tags */}
+                {tags.length > 0 && (
+                  <div className="mt-3 border-t border-border pt-3">
+                    <div className="flex flex-wrap gap-1.5">
+                      {tags.map((tag, i) => (
+                        <Badge key={i} variant="secondary" className="gap-1 bg-primary/10 text-primary">
+                          <Tag className="h-3 w-3" />{tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -376,24 +416,24 @@ export function ModDetailPage() {
               <div className="min-w-0" dir="rtl">
                 <Tabs value={tab} onValueChange={setTab}>
                   <TabsList className="w-full justify-start gap-2 overflow-x-auto p-1.5" dir="rtl">
-                    <TabsTrigger value="description" className="flex-none px-4 py-1.5">الوصف</TabsTrigger>
-                    <TabsTrigger value="changelog" className="flex-none px-4 py-1.5">سجل التغييرات</TabsTrigger>
-                    <TabsTrigger value="install" className="flex-none px-4 py-1.5">طريقة التركيب</TabsTrigger>
-                    <TabsTrigger value="translationTeam" className="flex-none px-4 py-1.5">فريق التعريب</TabsTrigger>
-                    <TabsTrigger value="images" className="flex-none px-4 py-1.5">
+                    <TabsTrigger value="description" className="flex-none whitespace-nowrap px-4 py-1.5">الوصف</TabsTrigger>
+                    <TabsTrigger value="changelog" className="flex-none whitespace-nowrap px-4 py-1.5">سجل التغييرات</TabsTrigger>
+                    <TabsTrigger value="install" className="flex-none whitespace-nowrap px-4 py-1.5">طريقة التركيب</TabsTrigger>
+                    <TabsTrigger value="translationTeam" className="flex-none whitespace-nowrap px-4 py-1.5">فريق التعريب</TabsTrigger>
+                    <TabsTrigger value="images" className="flex-none whitespace-nowrap px-4 py-1.5">
                       معرض الصور <span className="mr-1 text-xs text-muted-foreground">({gallery.length})</span>
                     </TabsTrigger>
-                    <TabsTrigger value="videos" className="flex-none px-4 py-1.5">فيديوهات</TabsTrigger>
-                    <TabsTrigger value="files" className="flex-none px-4 py-1.5">التحميل</TabsTrigger>
-                    <TabsTrigger value="comments" className="flex-none px-4 py-1.5">
-                      التعليقات <span className="mr-1 text-xs text-muted-foreground">({formatNumber(mod.comments)})</span>
-                    </TabsTrigger>
-                    {/* التبويبات المخصصة من الـ DB */}
+                    <TabsTrigger value="videos" className="flex-none whitespace-nowrap px-4 py-1.5">فيديوهات</TabsTrigger>
+                    <TabsTrigger value="files" className="flex-none whitespace-nowrap px-4 py-1.5">التحميل</TabsTrigger>
+                    {/* التبويبات المخصصة من الـ DB — قبل التعليقات */}
                     {mod.customTabs?.map((ct) => (
-                      <TabsTrigger key={ct.id} value={`custom-${ct.slug}`} className="flex-none px-4 py-1.5">
+                      <TabsTrigger key={ct.id} value={`custom-${ct.slug}`} className="flex-none whitespace-nowrap px-4 py-1.5">
                         {ct.name}
                       </TabsTrigger>
                     ))}
+                    <TabsTrigger value="comments" className="flex-none whitespace-nowrap px-4 py-1.5">
+                      التعليقات <span className="mr-1 text-xs text-muted-foreground">({formatNumber(mod.comments)})</span>
+                    </TabsTrigger>
                   </TabsList>
 
                   {/* Description tab */}

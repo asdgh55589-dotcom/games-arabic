@@ -16,6 +16,8 @@ import {
   LayoutPanelTop,
   Mail,
   AlertCircle,
+  ExternalLink,
+  CheckCircle2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -57,7 +59,10 @@ interface VideoItem {
   url: string
   thumbnail?: string
   duration?: string
+  description?: string
   views?: number
+  likes?: number
+  commentsCount?: number
   channel?: string
 }
 interface VideoGroup {
@@ -96,7 +101,7 @@ const EMPTY_FILE: DownloadFile = {
 }
 const EMPTY_MEMBER: TeamMember = { name: '', avatarUrl: '', role: 'مترجم', contribution: '' }
 const EMPTY_CONTACT: ContactLink = { type: 'website', label: '', url: '' }
-const EMPTY_VIDEO: VideoItem = { title: '', url: '', thumbnail: '', duration: '', views: 0, channel: '' }
+const EMPTY_VIDEO: VideoItem = { title: '', url: '', thumbnail: '', duration: '', description: '', views: 0, likes: 0, commentsCount: 0, channel: '' }
 const EMPTY_GROUP: VideoGroup = { name: '', videos: [] }
 const EMPTY_TAB: CustomTab = { name: '', slug: '', content: '', visible: true }
 
@@ -140,6 +145,9 @@ export default function ModForm({ modId }: ModFormProps) {
   const [contactLinks, setContactLinks] = useState<ContactLink[]>([])
   const [videoGroups, setVideoGroups] = useState<VideoGroup[]>([])
   const [customTabs, setCustomTabs] = useState<CustomTab[]>([])
+  const [fetchingVideoKey, setFetchingVideoKey] = useState<string | null>(null)
+  const [existingSeries, setExistingSeries] = useState<string[]>([])
+  const [existingTeams, setExistingTeams] = useState<string[]>([])
 
   // تحميل الألعاب
   useEffect(() => {
@@ -155,6 +163,19 @@ export default function ModForm({ modId }: ModFormProps) {
       })
       .catch(() => {})
       .finally(() => setLoadingGames(false))
+  }, [])
+
+  // تحميل السلاسل والفرق الحالية للإكمال التلقائي
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/series').then((r) => r.json()),
+      fetch('/api/teams').then((r) => r.json()),
+    ])
+      .then(([seriesData, teamsData]) => {
+        if (seriesData?.series) setExistingSeries(seriesData.series.map((s: any) => s.name))
+        if (teamsData?.teams) setExistingTeams(teamsData.teams.map((t: any) => t.name))
+      })
+      .catch(() => {})
   }, [])
 
   // لو تعديل: حمّل بيانات التعريب
@@ -209,7 +230,8 @@ export default function ModForm({ modId }: ModFormProps) {
         setVideoGroups(m.videoGroups?.map((g: any) => ({
           id: g.id, name: g.name, videos: g.videos?.map((v: any) => ({
             id: v.id, title: v.title, url: v.url, thumbnail: v.thumbnail || '',
-            duration: v.duration || '', views: v.views || 0, channel: v.channel || '',
+            duration: v.duration || '', views: v.views || 0, likes: v.likes || 0,
+            commentsCount: v.commentsCount || 0, channel: v.channel || '',
           })) || [],
         })) || [])
         setCustomTabs(m.customTabs?.map((t: any) => ({
@@ -222,23 +244,101 @@ export default function ModForm({ modId }: ModFormProps) {
 
   const selectedGame = games.find((g) => g.id === gameId)
 
-  // ===== Save =====
-  const onSave = async () => {
-    if (!name || !summary || !description || !gameId) {
-      toast({ title: 'بيانات ناقصة', description: 'الاسم والوصف المختصر والوصف الكامل واللعبة مطلوبون', variant: 'destructive' })
+  // تحميل أقسام اللعبة المختارة
+  useEffect(() => {
+    if (!selectedGame?.slug) return
+    fetch(`/api/games/${selectedGame?.slug}/categories`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.categories) {
+          setGames((prev) => prev.map((g) =>
+            g.id === gameId ? { ...g, categories: data.categories } : g
+          ))
+        }
+      })
+      .catch(() => {})
+  }, [gameId])
+
+  // جلب بيانات فيديو يوتيوب تلقائياً
+  const onFetchVideoMetadata = async (groupIdx: number, videoIdx: number, videoUrl: string) => {
+    if (!videoUrl.trim()) return
+    const videoId = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([\w-]{11})/)?.[1]
+    if (!videoId) {
+      toast({ title: 'رابط غير صالح', description: 'الرجاء إدخال رابط يوتيوب صحيح', variant: 'destructive' })
       return
     }
-    if (!thumbnailUrl || !imageUrl) {
+
+    const key = `${groupIdx}-${videoIdx}`
+    setFetchingVideoKey(key)
+
+    try {
+      const res = await fetch('/api/youtube/metadata', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: videoUrl }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'فشل الجلب')
+
+      setVideoGroups((prev) => prev.map((g, gi) => {
+        if (gi !== groupIdx) return g
+        return {
+          ...g,
+          videos: g.videos.map((v, vi) => {
+            if (vi !== videoIdx) return v
+            return {
+              ...v,
+              title: data.title || v.title,
+              channel: data.channel || v.channel,
+              thumbnail: data.thumbnail || v.thumbnail,
+              duration: data.duration || v.duration,
+              description: data.description || v.description,
+              views: data.views || v.views,
+              likes: data.likes || v.likes,
+              commentsCount: data.commentsCount || v.commentsCount,
+            }
+          }),
+        }
+      }))
+
+      toast({ title: 'تم جلب البيانات', description: `تم جلب بيانات فيديو: ${data.title}` })
+    } catch (err) {
+      toast({
+        title: 'فشل الجلب',
+        description: err instanceof Error ? err.message : 'حدث خطأ أثناء جلب البيانات',
+        variant: 'destructive',
+      })
+    } finally {
+      setFetchingVideoKey(null)
+    }
+  }
+
+  // ===== Save =====
+  const onSave = async () => {
+    const _name = (name || '').trim()
+    const _summary = (summary || '').trim()
+    const _description = (description || '').trim()
+    const _gameId = (gameId || '').trim()
+    if (!_name || !_summary || !_description || !_gameId) {
+      const missing: string[] = []
+      if (!_name) missing.push('الاسم')
+      if (!_summary) missing.push('الوصف المختصر')
+      if (!_description) missing.push('الوصف الكامل')
+      if (!_gameId) missing.push('اللعبة')
+      toast({ title: 'بيانات ناقصة', description: `الحقول التالية مطلوبة: ${missing.join('، ')}`, variant: 'destructive' })
+      return
+    }
+    if (!(thumbnailUrl || '').trim() || !(imageUrl || '').trim()) {
       toast({ title: 'صور ناقصة', description: 'الصورة الرئيسية والصورة المصغّرة مطلوبتان', variant: 'destructive' })
       return
     }
 
     setSaving(true)
     const payload = {
-      name, summary, description, changelog, installGuide, arabicTitle, compatibility,
+      name: _name, summary: _summary, description: _description, changelog, installGuide, arabicTitle, compatibility,
       tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
       series, translationTeam, translationType,
-      gameId, categoryId: categoryId || null,
+      gameId: _gameId, categoryId: categoryId || null,
       thumbnailUrl, imageUrl, galleryUrls,
       version, fileSize, fileFormat,
       releaseDate: releaseDate || null,
@@ -329,18 +429,20 @@ export default function ModForm({ modId }: ModFormProps) {
         </Field>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field label="السلسلة">
-            <Input value={series} onChange={(e) => setSeries(e.target.value)} placeholder="مثال: The Elder Scrolls" list="series-list" />
+            <Input value={series} onChange={(e) => setSeries(e.target.value)} placeholder="اختر أو اكتب اسم السلسلة" list="series-list" />
             <datalist id="series-list">
-              <option value="God of War" />
-              <option value="The Elder Scrolls" />
-              <option value="Cyberpunk" />
-              <option value="Final Fantasy" />
-              <option value="The Legend of Zelda" />
-              <option value="Pokémon" />
+              {existingSeries.map((s) => (
+                <option key={s} value={s} />
+              ))}
             </datalist>
           </Field>
           <Field label="فريق التعريب">
-            <Input value={translationTeam} onChange={(e) => setTranslationTeam(e.target.value)} placeholder="مثال: فريق Arab4Games" />
+            <Input value={translationTeam} onChange={(e) => setTranslationTeam(e.target.value)} placeholder="اختر أو اكتب اسم الفريق" list="teams-list" />
+            <datalist id="teams-list">
+              {existingTeams.map((t) => (
+                <option key={t} value={t} />
+              ))}
+            </datalist>
           </Field>
           <Field label="نوع التعريب" hint="اكتب أي نوع: رسمي، غير رسمي، واجهة، أسلحة، إلخ">
             <Input value={translationType} onChange={(e) => setTranslationType(e.target.value)} placeholder="مثال: تعريب رسمي - واجهة وقوالب" />
@@ -624,6 +726,7 @@ export default function ModForm({ modId }: ModFormProps) {
           </Button>
         }
       >
+        <p className="text-xs text-muted-foreground mb-3">الصق رابط يوتيوب وسيتم جلب العنوان والقناة والمشاهدة والتعليقات تلقائياً.</p>
         {videoGroups.length === 0 ? (
           <p className="text-sm text-muted-foreground">لا توجد أقسام فيديوهات.</p>
         ) : (
@@ -641,16 +744,79 @@ export default function ModForm({ modId }: ModFormProps) {
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
-                <div className="space-y-2">
-                  {group.videos.map((v, j) => (
-                    <div key={j} className="grid grid-cols-1 gap-2 rounded-md border border-border/50 p-2 sm:grid-cols-[1fr_1fr_auto]">
-                      <Input value={v.title} onChange={(e) => setVideoGroups((p) => p.map((g, idx) => idx === i ? { ...g, videos: g.videos.map((vv, vidx) => vidx === j ? { ...vv, title: e.target.value } : vv) } : g))} placeholder="عنوان الفيديو" />
-                      <Input value={v.url} onChange={(e) => setVideoGroups((p) => p.map((g, idx) => idx === i ? { ...g, videos: g.videos.map((vv, vidx) => vidx === j ? { ...vv, url: e.target.value } : vv) } : g))} placeholder="https://youtube.com/..." />
-                      <Button size="icon" variant="ghost" className="h-9 w-9 text-red-400" onClick={() => setVideoGroups((p) => p.map((g, idx) => idx === i ? { ...g, videos: g.videos.filter((_, vidx) => vidx !== j) } : g))}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
+                <div className="space-y-3">
+                  {group.videos.map((v, j) => {
+                    const fetchKey = `${i}-${j}`
+                    const isFetching = fetchingVideoKey === fetchKey
+                    const hasFetched = Boolean(v.title && v.channel)
+                    return (
+                      <div key={j} className="rounded-md border border-border/50 p-3 space-y-2">
+                        {/* رابط الفيديو + زر الجلب */}
+                        <div className="flex items-center gap-2">
+                          <div className="relative flex-1">
+                            <Input
+                              value={v.url}
+                              onChange={(e) => setVideoGroups((p) => p.map((g, idx) => idx === i ? { ...g, videos: g.videos.map((vv, vidx) => vidx === j ? { ...vv, url: e.target.value } : vv) } : g))}
+                              onBlur={(e) => {
+                                const url = e.target.value.trim()
+                                if (url && url !== v.url) {
+                                  onFetchVideoMetadata(i, j, url)
+                                }
+                              }}
+                              placeholder="https://youtube.com/watch?v=..."
+                              className="flex-1"
+                            />
+                            {isFetching && (
+                              <Loader2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-primary" />
+                            )}
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => onFetchVideoMetadata(i, j, v.url)}
+                            disabled={isFetching || !v.url.trim()}
+                            className="shrink-0"
+                          >
+                            {isFetching ? <Loader2 className="ml-1 h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="ml-1 h-3.5 w-3.5" />}
+                            جلب البيانات
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-9 w-9 text-red-400 shrink-0" onClick={() => setVideoGroups((p) => p.map((g, idx) => idx === i ? { ...g, videos: g.videos.filter((_, vidx) => vidx !== j) } : g))}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        {/* البيانات المجلوبة — editable */}
+                        {hasFetched && (
+                          <div className="space-y-2 rounded-md bg-secondary/30 p-2">
+                            <div className="flex items-center gap-1.5 text-xs text-green-500">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              <span>تم جلب البيانات من يوتيوب</span>
+                            </div>
+                            <Input
+                              value={v.title}
+                              onChange={(e) => setVideoGroups((p) => p.map((g, idx) => idx === i ? { ...g, videos: g.videos.map((vv, vidx) => vidx === j ? { ...vv, title: e.target.value } : vv) } : g))}
+                              placeholder="عنوان الفيديو"
+                              className="text-sm"
+                            />
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <Input value={v.channel || ''} readOnly className="text-xs opacity-70" placeholder="القناة" />
+                              <Input type="number" value={v.views || 0} onChange={(e) => setVideoGroups((p) => p.map((g, idx) => idx === i ? { ...g, videos: g.videos.map((vv, vidx) => vidx === j ? { ...vv, views: parseInt(e.target.value) || 0 } : vv) } : g))} placeholder="المشاهدات" className="text-xs" />
+                              <Input type="number" value={v.likes || 0} onChange={(e) => setVideoGroups((p) => p.map((g, idx) => idx === i ? { ...g, videos: g.videos.map((vv, vidx) => vidx === j ? { ...vv, likes: parseInt(e.target.value) || 0 } : vv) } : g))} placeholder="الإعجابات" className="text-xs" />
+                              <Input type="number" value={v.commentsCount || 0} onChange={(e) => setVideoGroups((p) => p.map((g, idx) => idx === i ? { ...g, videos: g.videos.map((vv, vidx) => vidx === j ? { ...vv, commentsCount: parseInt(e.target.value) || 0 } : vv) } : g))} placeholder="التعليقات" className="text-xs" />
+                            </div>
+                            {v.description && (
+                              <Textarea
+                                value={v.description}
+                                onChange={(e) => setVideoGroups((p) => p.map((g, idx) => idx === i ? { ...g, videos: g.videos.map((vv, vidx) => vidx === j ? { ...vv, description: e.target.value } : vv) } : g))}
+                                rows={2}
+                                placeholder="وصف الفيديو..."
+                                className="text-xs"
+                              />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                   <Button size="sm" variant="ghost" onClick={() => setVideoGroups((p) => p.map((g, idx) => idx === i ? { ...g, videos: [...g.videos, { ...EMPTY_VIDEO }] } : g))}>
                     <Plus className="ml-1 h-3 w-3" /> إضافة فيديو
                   </Button>

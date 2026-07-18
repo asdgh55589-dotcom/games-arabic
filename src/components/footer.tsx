@@ -31,21 +31,20 @@ export function Footer() {
 
   return (
     <footer className="mt-auto border-t border-border bg-card/30" dir="rtl">
-      <div className="mx-auto max-w-[1200px] px-4 py-12">
-        <div className="grid grid-cols-2 gap-8 md:grid-cols-4 lg:grid-cols-6">
+      <div className="mx-auto max-w-[1200px] px-4 py-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
           <div className="col-span-2">
             <Link href="/" className="flex items-center gap-1">
-              <span className="text-xl font-extrabold tracking-tight">
+              <span className="text-lg font-extrabold tracking-tight">
                 <span className="text-gradient">{nameParts[0] || 'GAMES'}</span>
                 <span className="text-foreground"> {nameParts.slice(1).join(' ') || 'ARABIC'}</span>
               </span>
             </Link>
-            <p className="mt-4 max-w-sm text-sm leading-relaxed text-muted-foreground">
-              منصة تعريب وأرشفة الألعاب العربية الأولى من نوعها. نوفر لك أحدث التعريبات النسخ المعربة الكاملة لكل ألعابك المفضلة على PC و Nintendo Switch و PlayStation بأجياله جميعاً، مع روابط تحميل مباشرة ومجتمع عربي متكامل للدعم والمشاركة.
+            <p className="mt-2 max-w-sm text-xs leading-relaxed text-muted-foreground">
+              تعريب وأرشفة الألعاب العربية لكل المنصات
             </p>
 
-            <div className="mt-5">
-              <p className="mb-2 text-xs font-semibold text-muted-foreground">قنواتنا على تليجرام</p>
+            <div className="mt-3">
               <div className="flex flex-wrap gap-2">
                 {social.telegram && (
                   <SocialIcon href={social.telegram} label="جروب المجتمع">
@@ -68,14 +67,17 @@ export function Footer() {
             </div>
           </div>
 
-          <FooterCol title="الأقسام">
-            <FooterLink href="/?view=platform&platform=PC">ARABIC PC</FooterLink>
-            <FooterLink href="/?view=platform&platform=NS">ARABIC NS</FooterLink>
-            <FooterLink href="/?view=platform&platform=PS4">ARABIC PS4</FooterLink>
-            <FooterLink href="/?view=platform&platform=PS3">ARABIC PS3</FooterLink>
-            <FooterLink href="/?view=platform&platform=PS2">ARABIC PS2</FooterLink>
-            <FooterLink href="/?view=platform&platform=PS1">ARABIC PS1</FooterLink>
-          </FooterCol>
+          <div>
+            <h3 className="text-xs font-semibold text-muted-foreground mb-2">الأقسام</h3>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+              <FooterLink href="/?view=platform&platform=PC">ARABIC PC</FooterLink>
+              <FooterLink href="/?view=platform&platform=NS">ARABIC NS</FooterLink>
+              <FooterLink href="/?view=platform&platform=PS4">ARABIC PS4</FooterLink>
+              <FooterLink href="/?view=platform&platform=PS3">ARABIC PS3</FooterLink>
+              <FooterLink href="/?view=platform&platform=PS2">ARABIC PS2</FooterLink>
+              <FooterLink href="/?view=platform&platform=PS1">ARABIC PS1</FooterLink>
+            </div>
+          </div>
 
           <FooterCol title="استكشاف">
             <FooterLink href="/?view=series">سلاسل التعريبات</FooterLink>
@@ -106,12 +108,9 @@ export function Footer() {
           </FooterCol>
         </div>
 
-        <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-border pt-6 sm:flex-row">
-          <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} {siteName} — صُنع بكل ❤️ من مصر للعالم العربي.
-          </p>
-          <p className="text-xs text-muted-foreground">
-            من اللاعب للاعب.
+        <div className="mt-4 flex items-center justify-center border-t border-border pt-3">
+          <p className="text-[11px] text-muted-foreground">
+            © {new Date().getFullYear()} {siteName} — صُنع في مصر ❤️
           </p>
         </div>
       </div>

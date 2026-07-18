@@ -213,7 +213,7 @@ export function AdSection() {
   if (loading || ads.length === 0) return null
 
   return (
-    <aside className="hidden w-[250px] shrink-0 space-y-4 xl:block" dir="rtl">
+    <aside className="space-y-4" dir="rtl">
       <div className="mb-2">
         <h2 className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
           <ImageIcon className="h-3.5 w-3.5" />

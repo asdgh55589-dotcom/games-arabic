@@ -14,6 +14,7 @@ import { LoginPage } from '@/views/login'
 import { RegisterPage } from '@/views/register'
 import { SeriesPage } from '@/views/series'
 import { SeriesDetailPage } from '@/views/series-detail'
+import { TranslationTeamsPage } from '@/views/translation-teams'
 import { PlatformPage } from '@/views/platform'
 import { SupportPage } from '@/views/support'
 import { ExplorePage } from '@/views/explore'
@@ -35,6 +36,7 @@ type View =
   | 'register'
   | 'series'
   | 'series-detail'
+  | 'teams'
   | 'platform'
   | 'support'
   | 'explore'
@@ -46,7 +48,7 @@ type View =
 
 const KNOWN_VIEWS: ReadonlySet<string> = new Set<string>([
   'home', 'mod', 'search', 'upload', 'profile', 'login', 'register',
-  'series', 'series-detail', 'platform', 'support', 'explore', 'community',
+  'series', 'series-detail', 'teams', 'platform', 'support', 'explore', 'community',
   'about', 'problems', 'terms', 'privacy',
 ])
 
@@ -92,6 +94,7 @@ function PageContent() {
           {view === 'register' && <RegisterPage />}
           {view === 'series' && <SeriesPage />}
           {view === 'series-detail' && <SeriesDetailPage />}
+          {view === 'teams' && <TranslationTeamsPage />}
           {view === 'platform' && <PlatformPage />}
           {view === 'support' && <SupportPage />}
           {view === 'explore' && <ExplorePage />}

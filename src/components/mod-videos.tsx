@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Play, Clock, Eye, Youtube, ChevronLeft, X, VideoOff } from 'lucide-react'
+import { Play, Clock, Eye, Youtube, ChevronLeft, X, VideoOff, ThumbsUp, MessageSquare } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { formatNumber } from '@/lib/format'
 import type { ModVideoGroup } from '@/lib/types'
@@ -23,7 +23,10 @@ export function ModVideos({ videoGroups }: ModVideosProps) {
     title: string
     url: string
     channel?: string | null
+    description?: string | null
     views: number
+    likes: number
+    commentsCount: number
     thumbnail?: string | null
   } | null>(null)
 
@@ -69,7 +72,10 @@ export function ModVideos({ videoGroups }: ModVideosProps) {
                       title: video.title,
                       url: video.url,
                       channel: video.channel,
+                      description: video.description,
                       views: video.views,
+                      likes: video.likes,
+                      commentsCount: video.commentsCount,
                       thumbnail: video.thumbnail,
                     })}
                     className="group flex w-full items-stretch gap-4 overflow-hidden rounded-lg border border-border bg-card text-right transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10"
@@ -120,6 +126,18 @@ export function ModVideos({ videoGroups }: ModVideosProps) {
                           <Eye className="h-3 w-3" />
                           {formatNumber(video.views)} مشاهدة
                         </span>
+                        {video.likes > 0 && (
+                          <span className="flex items-center gap-1">
+                            <ThumbsUp className="h-3 w-3" />
+                            {formatNumber(video.likes)}
+                          </span>
+                        )}
+                        {video.commentsCount > 0 && (
+                          <span className="flex items-center gap-1">
+                            <MessageSquare className="h-3 w-3" />
+                            {formatNumber(video.commentsCount)}
+                          </span>
+                        )}
                         {video.duration && (
                           <span className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
@@ -170,15 +188,36 @@ export function ModVideos({ videoGroups }: ModVideosProps) {
               )}
             </div>
             <div className="mt-4 flex items-start justify-between gap-4">
-              <div>
+              <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-bold text-white">{activeVideo.title}</h3>
-                <div className="mt-1 flex items-center gap-3 text-sm text-white/60">
+                {activeVideo.description && (
+                  <p className="mt-2 text-sm text-white/60 line-clamp-3 whitespace-pre-line">{activeVideo.description}</p>
+                )}
+                <div className="mt-2 flex items-center gap-3 text-sm text-white/60">
                   {activeVideo.channel && <span>{activeVideo.channel}</span>}
                   <span>•</span>
                   <span className="flex items-center gap-1">
                     <Eye className="h-3.5 w-3.5" />
                     {formatNumber(activeVideo.views)} مشاهدة
                   </span>
+                  {activeVideo.likes > 0 && (
+                    <>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <ThumbsUp className="h-3.5 w-3.5" />
+                        {formatNumber(activeVideo.likes)}
+                      </span>
+                    </>
+                  )}
+                  {activeVideo.commentsCount > 0 && (
+                    <>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <MessageSquare className="h-3.5 w-3.5" />
+                        {formatNumber(activeVideo.commentsCount)}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
               <a

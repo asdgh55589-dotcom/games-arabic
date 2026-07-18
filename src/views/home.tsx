@@ -34,29 +34,30 @@ export function HomePage() {
         <HeroSlider slides={data.latestMods} />
       ) : null}
 
-      {/* ===== الصف الرئيسي: المحتوى + الشريط الجانبي + الإعلانات =====
+      {/* ===== الصف الرئيسي: المحتوى + الشريط الجانبي =====
           - الشريط الجانبي على اليمين (340px)
-          - المحتوى الرئيسي في المنتصف (flex-1)
-          - الإعلانات على اليسار في المساحة الفارغة (250px)
-          - المسافات مضبوطة: البطاقات قريبة من الشريط الجانبي */}
+          - المحتوى الرئيسي في الباقي (flex-1) */}
       <div className="mx-auto flex max-w-[1600px] gap-4 py-4 px-4 lg:px-6" dir="rtl">
-        {/* ===== الشريط الجانبي — على اليمين في RTL ===== */}
-        {loading ? (
-          <aside className="w-[340px] shrink-0 space-y-4">
-            <div className="h-64 animate-pulse rounded-lg bg-secondary" />
-            <div className="h-64 animate-pulse rounded-lg bg-secondary" />
-            <div className="h-64 animate-pulse rounded-lg bg-secondary" />
-          </aside>
-        ) : (
-          <HomeSidebar
-            latest={data?.latestMods || []}
-            trending={data?.trendingMods || []}
-            topEndorsed={data?.topEndorsed || []}
-          />
-        )}
+        {/* ===== اليمين: الإعلانات فوق + الشريط الجانبي تحت ===== */}
+        <div className="w-[340px] shrink-0 space-y-4 -mr-[80px]">
+          <AdSection />
+          {loading ? (
+            <div className="space-y-4">
+              <div className="h-64 animate-pulse rounded-lg bg-secondary" />
+              <div className="h-64 animate-pulse rounded-lg bg-secondary" />
+              <div className="h-64 animate-pulse rounded-lg bg-secondary" />
+            </div>
+          ) : (
+            <HomeSidebar
+              latest={data?.latestMods || []}
+              trending={data?.trendingMods || []}
+              topEndorsed={data?.topEndorsed || []}
+            />
+          )}
+        </div>
 
         {/* ===== المحتوى الرئيسي — في المنتصف ===== */}
-        <div className="min-w-0 flex-1 space-y-8">
+        <div className="min-w-0 flex-1 space-y-8 -ml-[80px]">
 
       {/* أقسام المنصات — كل قسم يستخدم ModCard بنفس التصميم */}
       {(() => {
@@ -67,7 +68,7 @@ export function HomePage() {
           const showDivider = firstSectionRendered
           firstSectionRendered = true
           return (
-            <section key={platform.key} className="pt-6">
+            <section key={platform.key} className={showDivider ? "pt-6" : "pt-4"}>
               {/* فاصل بارز بين الأقسام */}
               {showDivider && (
                 <div className="mb-6 h-1 bg-zinc-700" />
@@ -86,7 +87,7 @@ export function HomePage() {
                 </Button>
               </div>
               {/* 10 بطاقات ModCard لكل قسم */}
-              <div className="grid grid-cols-2 gap-4 sm:gap-5 sm:grid-cols-3 lg:grid-cols-4">
+              <div className="grid grid-cols-2 gap-4 sm:gap-5 sm:grid-cols-3 lg:grid-cols-5">
                 {loading
                   ? Array.from({ length: 10 }).map((_, i) => <ModCardSkeleton key={i} />)
                   : mods.slice(0, 10).map((m) => <ModCard key={m.id} mod={m} />)}
@@ -137,8 +138,6 @@ export function HomePage() {
 
         </div>{/* نهاية المحتوى الرئيسي */}
 
-        {/* ===== الإعلانات — على اليسار في المساحة الفارغة ===== */}
-        <AdSection />
       </div>
     </div>
   )
